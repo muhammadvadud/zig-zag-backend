@@ -1,3 +1,14 @@
+# Internal project docs (not for publishing)
+zigzag_backend_tz.md
+
+# IDE
+.idea/
+.vscode/
+
+# Local env & static
+.env
+staticfiles/
+
 # Django #
 *.log
 *.pot

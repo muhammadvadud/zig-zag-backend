@@ -1,0 +1,28 @@
+# Core
+Django==5.2.6
+djangorestframework==3.16.0
+djangorestframework-simplejwt==5.5.1
+django-filter==25.1
+drf-spectacular==0.28.0
+
+# Async / tasks
+celery==5.5.3
+redis==5.2.1
+django-redis==5.4.0
+
+# Infra / config
+django-cors-headers==4.7.0
+django-environ==0.12.0
+psycopg[binary]==3.2.9
+gunicorn==23.0.0
+
+# Storage / media
+django-storages==1.14.6
+boto3==1.40.0
+pillow==11.3.0
+
+# Observability
+sentry-sdk==2.35.0
+
+# AI provider
+anthropic==0.69.0
