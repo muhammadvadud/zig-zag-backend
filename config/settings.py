@@ -9,6 +9,8 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from django.templatetags.static import static  # noqa: F401  (available for UNFOLD)
+from django.urls import reverse_lazy
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,6 +28,10 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
 INSTALLED_APPS = [
+    # Admin theme (must precede django.contrib.admin)
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -200,7 +206,7 @@ REST_FRAMEWORK = {
         "search": "30/min",
     },
     "EXCEPTION_HANDLER": "apps.common.exceptions.api_exception_handler",
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "apps.common.schema.TaggedAutoSchema",
 }
 
 SIMPLE_JWT = {
@@ -219,6 +225,120 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    # Section order and descriptions shown in Swagger.
+    "TAGS": [
+        {"name": "Auth", "description": "OTP orqali kirish, JWT token"},
+        {"name": "Profil", "description": "Foydalanuvchi profili va manzillar"},
+        {"name": "Katalog", "description": "Kategoriya, mahsulot, sharh, banner, FAQ"},
+        {"name": "Sevimlilar", "description": "Wishlist"},
+        {"name": "Tariflar", "description": "Smart / Lux / Premium xizmatlari"},
+        {"name": "Savat", "description": "Savat va undagi elementlar"},
+        {"name": "Buyurtmalar", "description": "Checkout, buyurtmalar, o'lchov so'rovi"},
+        {"name": "To'lovlar", "description": "Payme va Click webhooklari"},
+        {"name": "AI yordamchi", "description": "AI chat va kvota"},
+        {"name": "AI rasm", "description": "Sun'iy rasm generatsiyasi"},
+        {"name": "Admin", "description": "Boshqaruv (manager / admin)"},
+        {"name": "Tizim", "description": "Health-check va xizmat endpointlari"},
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "docExpansion": "none",
+        "defaultModelsExpandDepth": -1,
+        "filter": True,
+        "persistAuthorization": True,
+        "displayRequestDuration": True,
+        "tryItOutEnabled": True,
+    },
+}
+
+# --------------------------------------------------------------------------- #
+# Admin theme (django-unfold)
+# --------------------------------------------------------------------------- #
+def _nav_item(label, model, icon):
+    return {"title": label, "icon": icon, "link": reverse_lazy(f"admin:{model}_changelist")}
+
+
+UNFOLD = {
+    "SITE_TITLE": "ZIG ZAG Admin",
+    "SITE_HEADER": "ZIG ZAG",
+    "SITE_SUBHEADER": "Premium pardalar — boshqaruv paneli",
+    "SITE_SYMBOL": "storefront",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+    "SHOW_LANGUAGES": False,
+    "COLORS": {
+        "primary": {
+            "50": "240 249 245",
+            "100": "209 240 224",
+            "200": "167 224 196",
+            "300": "111 201 159",
+            "400": "57 173 122",
+            "500": "20 142 96",
+            "600": "12 115 79",
+            "700": "11 92 65",
+            "800": "12 73 53",
+            "900": "11 60 45",
+            "950": "4 34 26",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": "Foydalanuvchilar",
+                "separator": True,
+                "items": [
+                    _nav_item("Foydalanuvchilar", "accounts_user", "person"),
+                    _nav_item("Manzillar", "accounts_address", "home_pin"),
+                    _nav_item("OTP kodlar", "accounts_otpcode", "password"),
+                ],
+            },
+            {
+                "title": "Katalog",
+                "separator": True,
+                "items": [
+                    _nav_item("Kategoriyalar", "catalog_category", "category"),
+                    _nav_item("Mahsulotlar", "catalog_product", "inventory_2"),
+                    _nav_item("Variantlar", "catalog_productvariant", "tune"),
+                    _nav_item("Rasmlar", "catalog_productimage", "image"),
+                    _nav_item("Ranglar", "catalog_color", "palette"),
+                    _nav_item("Sharhlar", "catalog_review", "reviews"),
+                    _nav_item("Sevimlilar", "catalog_favorite", "favorite"),
+                    _nav_item("Kolleksiyalar", "catalog_collection", "collections"),
+                    _nav_item("Bannerlar", "catalog_banner", "ad"),
+                    _nav_item("FAQ", "catalog_faq", "quiz"),
+                ],
+            },
+            {
+                "title": "Savdo",
+                "separator": True,
+                "items": [
+                    _nav_item("Tariflar", "services_servicetariff", "sell"),
+                    _nav_item("Savatlar", "cart_cart", "shopping_cart"),
+                    _nav_item("Buyurtmalar", "orders_order", "receipt_long"),
+                    _nav_item("O'lchov so'rovlari", "orders_measurementrequest", "straighten"),
+                    _nav_item("Sovg'a kartalari", "orders_giftcard", "card_giftcard"),
+                    _nav_item("To'lovlar", "payments_payment", "payments"),
+                ],
+            },
+            {
+                "title": "AI",
+                "separator": True,
+                "items": [
+                    _nav_item("Suhbatlar", "ai_aiconversation", "forum"),
+                    _nav_item("Rasm generatsiya", "ai_aiimagegeneration", "imagesmode"),
+                    _nav_item("Kvota", "ai_aiusagequota", "data_usage"),
+                ],
+            },
+            {
+                "title": "Tizim",
+                "separator": True,
+                "items": [
+                    _nav_item("Audit jurnali", "common_auditlog", "history"),
+                ],
+            },
+        ],
+    },
 }
 
 # --------------------------------------------------------------------------- #
