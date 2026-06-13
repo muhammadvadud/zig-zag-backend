@@ -8,43 +8,33 @@ from apps.common.models import BaseModel
 
 class Category(BaseModel):
     slug = models.SlugField(unique=True)
-    name_uz = models.CharField(max_length=100)
-    name_ru = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, default="")
     icon = models.ImageField(upload_to="categories/icons/", null=True, blank=True)
     image = models.ImageField(upload_to="categories/", null=True, blank=True)
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["sort_order", "name_uz"]
+        ordering = ["sort_order", "name"]
         verbose_name_plural = "Categories"
 
     def __str__(self):
         return self.slug
 
-    def name(self, lang="uz"):
-        return self.name_ru if lang == "ru" else self.name_uz
-
 
 class Color(BaseModel):
-    name_uz = models.CharField(max_length=64)
-    name_ru = models.CharField(max_length=64)
+    name = models.CharField(max_length=64, default="")
     hex = models.CharField(max_length=7)
 
     def __str__(self):
-        return f"{self.name_uz} ({self.hex})"
-
-    def name(self, lang="uz"):
-        return self.name_ru if lang == "ru" else self.name_uz
+        return f"{self.name} ({self.hex})"
 
 
 class Product(BaseModel):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     slug = models.SlugField(unique=True)
-    name_uz = models.CharField(max_length=150)
-    name_ru = models.CharField(max_length=150)
-    description_uz = models.TextField(blank=True)
-    description_ru = models.TextField(blank=True)
+    name = models.CharField(max_length=150, default="")
+    description = models.TextField(blank=True, default="")
     material = models.CharField(max_length=64, blank=True)
     base_price = models.DecimalField(max_digits=12, decimal_places=2)
     price_per_m2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
@@ -64,12 +54,6 @@ class Product(BaseModel):
 
     def __str__(self):
         return self.slug
-
-    def name(self, lang="uz"):
-        return self.name_ru if lang == "ru" else self.name_uz
-
-    def description(self, lang="uz"):
-        return self.description_ru if lang == "ru" else self.description_uz
 
     @property
     def final_price(self):
@@ -140,8 +124,7 @@ class Favorite(BaseModel):
 
 class Collection(BaseModel):
     slug = models.SlugField(unique=True)
-    title_uz = models.CharField(max_length=150)
-    title_ru = models.CharField(max_length=150)
+    title = models.CharField(max_length=150, default="")
     image = models.ImageField(upload_to="collections/", null=True, blank=True)
     products = models.ManyToManyField(Product, blank=True, related_name="collections")
     sort_order = models.PositiveIntegerField(default=0)
@@ -150,13 +133,9 @@ class Collection(BaseModel):
     class Meta:
         ordering = ["sort_order"]
 
-    def title(self, lang="uz"):
-        return self.title_ru if lang == "ru" else self.title_uz
-
 
 class Banner(BaseModel):
-    title_uz = models.CharField(max_length=150, blank=True)
-    title_ru = models.CharField(max_length=150, blank=True)
+    title = models.CharField(max_length=150, blank=True, default="")
     image = models.ImageField(upload_to="banners/")
     link = models.CharField(max_length=255, blank=True)
     sort_order = models.PositiveIntegerField(default=0)
@@ -165,15 +144,10 @@ class Banner(BaseModel):
     class Meta:
         ordering = ["sort_order"]
 
-    def title(self, lang="uz"):
-        return self.title_ru if lang == "ru" else self.title_uz
-
 
 class FAQ(BaseModel):
-    question_uz = models.CharField(max_length=255)
-    question_ru = models.CharField(max_length=255)
-    answer_uz = models.TextField()
-    answer_ru = models.TextField()
+    question = models.CharField(max_length=255, default="")
+    answer = models.TextField(default="")
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 

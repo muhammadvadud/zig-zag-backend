@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
 from apps.catalog.models import ProductVariant
-from apps.common.utils import current_language
 from apps.services.models import ServiceTariff
 
 from .models import Cart, CartItem
@@ -29,15 +28,11 @@ class CartItemSerializer(serializers.ModelSerializer):
             "line_total",
         )
 
-    def _lang(self):
-        request = self.context.get("request")
-        return current_language(request) if request else "uz"
-
     def get_product_name(self, obj):
-        return obj.variant.product.name(self._lang())
+        return obj.variant.product.name
 
     def get_color(self, obj):
-        return obj.variant.color.name(self._lang())
+        return obj.variant.color.name
 
 
 class CartSerializer(serializers.ModelSerializer):

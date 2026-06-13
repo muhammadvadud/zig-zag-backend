@@ -28,6 +28,8 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
 INSTALLED_APPS = [
+    # Model translation (must precede django.contrib.admin for admin integration)
+    "modeltranslation",
     # Admin theme (must precede django.contrib.admin)
     "unfold",
     "unfold.contrib.filters",
@@ -153,6 +155,11 @@ LANGUAGES = [("uz", "O'zbekcha"), ("ru", "Русский")]
 TIME_ZONE = "Asia/Tashkent"
 USE_I18N = True
 USE_TZ = True
+
+# django-modeltranslation: uz is the default/fallback language.
+MODELTRANSLATION_DEFAULT_LANGUAGE = "uz"
+MODELTRANSLATION_LANGUAGES = ("uz", "ru")
+MODELTRANSLATION_FALLBACK_LANGUAGES = ("uz",)
 
 # --------------------------------------------------------------------------- #
 # Static & media

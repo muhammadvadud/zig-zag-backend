@@ -1,4 +1,5 @@
 from django.contrib import admin
+from modeltranslation.admin import TranslationAdmin
 from unfold.admin import ModelAdmin, TabularInline
 
 from .models import (
@@ -26,20 +27,20 @@ class ProductVariantInline(TabularInline):
 
 
 @admin.register(Category)
-class CategoryAdmin(ModelAdmin):
+class CategoryAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("slug", "name_uz", "sort_order", "is_active")
     list_filter = ("is_active",)
     prepopulated_fields = {"slug": ("name_uz",)}
 
 
 @admin.register(Color)
-class ColorAdmin(ModelAdmin):
+class ColorAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("name_uz", "name_ru", "hex")
     search_fields = ("name_uz", "name_ru")
 
 
 @admin.register(Product)
-class ProductAdmin(ModelAdmin):
+class ProductAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("slug", "name_uz", "category", "base_price", "discount_percent", "stock", "is_new", "is_active")
     list_filter = ("category", "is_new", "is_active")
     search_fields = ("slug", "name_uz", "name_ru")
@@ -79,7 +80,7 @@ class FavoriteAdmin(ModelAdmin):
 
 
 @admin.register(Collection)
-class CollectionAdmin(ModelAdmin):
+class CollectionAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("slug", "title_uz", "sort_order", "is_active")
     list_filter = ("is_active",)
     prepopulated_fields = {"slug": ("title_uz",)}
@@ -87,13 +88,13 @@ class CollectionAdmin(ModelAdmin):
 
 
 @admin.register(Banner)
-class BannerAdmin(ModelAdmin):
+class BannerAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("title_uz", "sort_order", "is_active")
     list_filter = ("is_active",)
 
 
 @admin.register(FAQ)
-class FAQAdmin(ModelAdmin):
+class FAQAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("question_uz", "sort_order", "is_active")
     list_filter = ("is_active",)
     search_fields = ("question_uz", "question_ru")
