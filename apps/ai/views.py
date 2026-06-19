@@ -1,13 +1,12 @@
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.permissions import IsStaffRole
 from apps.common.throttles import (
-    AIChatAnonThrottle,
     AIChatDailyThrottle,
     AIChatThrottle,
     AIImageThrottle,
@@ -28,42 +27,28 @@ from .tasks import generate_ai_image
 
 
 def _owner_filter(request):
-    """Scope conversations to the caller (user when logged in, else session)."""
+    """Scope conversations to the authenticated caller."""
 
-    if request.user.is_authenticated:
-        return {"user": request.user}
-    if not request.session.session_key:
-        request.session.save()
-    return {"session_key": request.session.session_key, "user__isnull": True}
+    return {"user": request.user}
 
 
 class ConversationListCreate(generics.ListCreateAPIView):
     serializer_class = AIConversationSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return AIConversation.objects.filter(**_owner_filter(self.request))
 
     def perform_create(self, serializer):
-        serializer.save(**_owner_filter_for_save(self.request))
-
-
-def _owner_filter_for_save(request):
-    if request.user.is_authenticated:
-        return {"user": request.user}
-    if not request.session.session_key:
-        request.session.save()
-    return {"session_key": request.session.session_key}
+        serializer.save(**_owner_filter(self.request))
 
 
 class ConversationMessages(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_throttles(self):
         if self.request.method == "POST":
-            if self.request.user.is_authenticated:
-                return [AIChatThrottle(), AIChatDailyThrottle()]
-            return [AIChatAnonThrottle()]
+            return [AIChatThrottle(), AIChatDailyThrottle()]
         return super().get_throttles()
 
     def _get_conversation(self, request, pk):
