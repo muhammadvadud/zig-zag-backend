@@ -12,6 +12,7 @@ from django.db.models import Avg
 from apps.catalog.models import (
     Banner,
     Category,
+    Collection,
     Color,
     Product,
     ProductVariant,
@@ -41,6 +42,7 @@ class Command(BaseCommand):
         rooms = self._rooms()
         self._catalog(colors, styles, rooms)
         self._banners()
+        self._collections()
         self._reviews()
         self.stdout.write(self.style.SUCCESS("Demo ma'lumotlar yuklandi."))
 
@@ -212,6 +214,24 @@ class Command(BaseCommand):
             )
             if not banner.image:
                 banner.image.save(f"banner-{i}.jpg", ContentFile(_download(url)), save=True)
+
+    def _collections(self):
+        data = [
+            ("bukhara-2026", "Bukhara 2026", "Бухара 2026",
+             ["linen-sahar", "sheer-nur"],
+             "https://images.unsplash.com/photo-1513161455079-7dc1de15ef3e?w=1400&q=80"),
+            ("velvet-lux", "Velvet Lux", "Бархат Люкс",
+             ["velvet-shoh", "blackout-noir"],
+             "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=1400&q=80"),
+        ]
+        for i, (slug, tu, tr, prod_slugs, url) in enumerate(data):
+            collection, _ = Collection.objects.update_or_create(
+                slug=slug,
+                defaults={"title_uz": tu, "title_ru": tr, "sort_order": i},
+            )
+            collection.products.set(Product.objects.filter(slug__in=prod_slugs))
+            if not collection.image:
+                collection.image.save(f"{slug}.jpg", ContentFile(_download(url)), save=True)
 
     def _reviews(self):
         User = get_user_model()

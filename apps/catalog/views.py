@@ -1,4 +1,4 @@
-from django.db.models import Count, F, Max, Min, Q
+from django.db.models import Count, F, Max, Min, Prefetch, Q
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -41,9 +41,10 @@ class CategoryList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
+        # Faqat (faol) mahsuloti bor kategoriyalar qaytariladi.
         return Category.objects.filter(is_active=True).annotate(
             products_count=Count("products", filter=Q(products__is_active=True))
-        )
+        ).filter(products_count__gt=0)
 
 
 def _product_queryset():
@@ -169,15 +170,30 @@ class ProductReviewList(generics.ListCreateAPIView):
         serializer.save(user=user, product=product, order=order_item.order, is_published=False)
 
 
+def _collection_queryset():
+    # Nested mahsulotlar to'liq (styles/rooms/reviews_count) bo'lishi uchun
+    # _product_queryset bilan prefetch qilamiz.
+    return Collection.objects.filter(is_active=True).prefetch_related(
+        Prefetch("products", queryset=_product_queryset())
+    )
+
+
 class CollectionList(generics.ListAPIView):
     serializer_class = CollectionSerializer
     permission_classes = [AllowAny]
     pagination_class = None
 
     def get_queryset(self):
-        return Collection.objects.filter(is_active=True).prefetch_related(
-            "products__images", "products__variants__color"
-        )
+        return _collection_queryset()
+
+
+class CollectionDetail(generics.RetrieveAPIView):
+    serializer_class = CollectionSerializer
+    permission_classes = [AllowAny]
+    lookup_field = "slug"
+
+    def get_queryset(self):
+        return _collection_queryset()
 
 
 class StyleList(generics.ListAPIView):
