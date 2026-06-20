@@ -310,6 +310,8 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     _nav_item("Kategoriyalar", "catalog_category", "category"),
+                    _nav_item("Uslublar", "catalog_style", "style"),
+                    _nav_item("Xonalar", "catalog_room", "meeting_room"),
                     _nav_item("Mahsulotlar", "catalog_product", "inventory_2"),
                     _nav_item("Variantlar", "catalog_productvariant", "tune"),
                     _nav_item("Rasmlar", "catalog_productimage", "image"),
