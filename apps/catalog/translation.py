@@ -1,10 +1,20 @@
 from modeltranslation.translator import TranslationOptions, register
 
-from .models import FAQ, Banner, Category, Collection, Color, Product
+from .models import FAQ, Banner, Category, Collection, Color, Product, Room, Style
 
 
 @register(Category)
 class CategoryTranslationOptions(TranslationOptions):
+    fields = ("name",)
+
+
+@register(Style)
+class StyleTranslationOptions(TranslationOptions):
+    fields = ("name", "blurb")
+
+
+@register(Room)
+class RoomTranslationOptions(TranslationOptions):
     fields = ("name",)
 
 
@@ -25,7 +35,7 @@ class CollectionTranslationOptions(TranslationOptions):
 
 @register(Banner)
 class BannerTranslationOptions(TranslationOptions):
-    fields = ("title",)
+    fields = ("title", "eyebrow", "subtitle", "cta")
 
 
 @register(FAQ)

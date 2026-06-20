@@ -16,6 +16,8 @@ from .models import (
     Favorite,
     Product,
     Review,
+    Room,
+    Style,
 )
 from .serializers import (
     AdminProductSerializer,
@@ -27,6 +29,8 @@ from .serializers import (
     ProductDetailSerializer,
     ProductListSerializer,
     ReviewSerializer,
+    RoomSerializer,
+    StyleSerializer,
 )
 
 
@@ -45,7 +49,12 @@ def _product_queryset():
     return (
         Product.objects.filter(is_active=True)
         .select_related("category")
-        .prefetch_related("images", "variants__color")
+        .prefetch_related("images", "variants__color", "styles", "rooms")
+        .annotate(
+            reviews_count=Count(
+                "reviews", filter=Q(reviews__is_published=True), distinct=True
+            )
+        )
     )
 
 
@@ -121,6 +130,20 @@ class CollectionList(generics.ListAPIView):
         return Collection.objects.filter(is_active=True).prefetch_related(
             "products__images", "products__variants__color"
         )
+
+
+class StyleList(generics.ListAPIView):
+    serializer_class = StyleSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+    queryset = Style.objects.filter(is_active=True)
+
+
+class RoomList(generics.ListAPIView):
+    serializer_class = RoomSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+    queryset = Room.objects.filter(is_active=True)
 
 
 class BannerList(generics.ListAPIView):

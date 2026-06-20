@@ -30,6 +30,34 @@ class Color(BaseModel):
         return f"{self.name} ({self.hex})"
 
 
+class Style(BaseModel):
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=100, default="")
+    blurb = models.CharField(max_length=255, blank=True, default="")
+    image = models.ImageField(upload_to="styles/", null=True, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.slug
+
+
+class Room(BaseModel):
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=100, default="")
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.slug
+
+
 class Product(BaseModel):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     slug = models.SlugField(unique=True)
@@ -44,6 +72,8 @@ class Product(BaseModel):
     stock = models.PositiveIntegerField(default=0)
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     views_count = models.PositiveIntegerField(default=0)
+    styles = models.ManyToManyField("Style", blank=True, related_name="products")
+    rooms = models.ManyToManyField("Room", blank=True, related_name="products")
 
     class Meta:
         ordering = ["-created_at"]
@@ -136,6 +166,9 @@ class Collection(BaseModel):
 
 class Banner(BaseModel):
     title = models.CharField(max_length=150, blank=True, default="")
+    eyebrow = models.CharField(max_length=100, blank=True, default="")
+    subtitle = models.CharField(max_length=255, blank=True, default="")
+    cta = models.CharField(max_length=64, blank=True, default="")
     image = models.ImageField(upload_to="banners/")
     link = models.CharField(max_length=255, blank=True)
     sort_order = models.PositiveIntegerField(default=0)

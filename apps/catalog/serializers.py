@@ -11,6 +11,8 @@ from .models import (
     ProductImage,
     ProductVariant,
     Review,
+    Room,
+    Style,
 )
 
 
@@ -48,6 +50,23 @@ class ColorSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "hex")
 
 
+class StyleSerializer(ImageUrlMixin, serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Style
+        fields = ("slug", "name", "blurb", "image", "sort_order")
+
+    def get_image(self, obj):
+        return self.abs_url(obj.image)
+
+
+class RoomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Room
+        fields = ("slug", "name", "sort_order")
+
+
 class ProductImageSerializer(ImageUrlMixin, serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
 
@@ -74,6 +93,9 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
     main_image = serializers.SerializerMethodField()
     colors = serializers.SerializerMethodField()
     colors_count = serializers.SerializerMethodField()
+    styles = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
+    rooms = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
+    reviews_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Product
@@ -91,6 +113,9 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "main_image",
             "colors",
             "colors_count",
+            "styles",
+            "rooms",
+            "reviews_count",
         )
 
     def get_main_image(self, obj):
@@ -107,7 +132,6 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
 class ProductDetailSerializer(ProductListSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
-    reviews_count = serializers.SerializerMethodField()
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + (
@@ -117,11 +141,7 @@ class ProductDetailSerializer(ProductListSerializer):
             "views_count",
             "images",
             "variants",
-            "reviews_count",
         )
-
-    def get_reviews_count(self, obj):
-        return obj.reviews.filter(is_published=True).count()
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -163,7 +183,7 @@ class BannerSerializer(ImageUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Banner
-        fields = ("id", "title", "image", "link")
+        fields = ("id", "title", "eyebrow", "subtitle", "cta", "image", "link")
 
     def get_image(self, obj):
         return self.abs_url(obj.image)
