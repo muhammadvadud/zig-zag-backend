@@ -1,4 +1,4 @@
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Max, Min, Q
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -13,6 +13,7 @@ from .models import (
     Banner,
     Category,
     Collection,
+    Color,
     Favorite,
     Product,
     Review,
@@ -87,6 +88,53 @@ class ProductDetail(generics.RetrieveAPIView):
             request.session[seen_key] = True
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+class ProductFacets(generics.GenericAPIView):
+    """Joriy so'rovga (search/category/price...) mos mahsulotlar uchun
+    mavjud filtr variantlarini (kategoriya/uslub/xona/rang/narx) qaytaradi.
+    Shunda sidebar faqat shu sahifadagi mahsulotlarga tegishli filtrlarni ko'rsatadi."""
+
+    permission_classes = [AllowAny]
+    filterset_class = ProductFilter
+    search_fields = ["name_uz", "name_ru", "material"]
+    pagination_class = None
+
+    def get_queryset(self):
+        return Product.objects.filter(is_active=True)
+
+    def get(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        ids = list(qs.values_list("id", flat=True))
+
+        categories = [
+            {"slug": r["category__slug"], "count": r["count"]}
+            for r in qs.values("category__slug").annotate(count=Count("id")).order_by("-count")
+            if r["category__slug"]
+        ]
+        styles = list(
+            Style.objects.filter(products__in=ids)
+            .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
+            .values("slug", "count").order_by("sort_order")
+        )
+        rooms = list(
+            Room.objects.filter(products__in=ids)
+            .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
+            .values("slug", "count").order_by("sort_order")
+        )
+        colors = list(
+            Color.objects.filter(variants__product__in=ids)
+            .annotate(count=Count("variants__product", filter=Q(variants__product__in=ids), distinct=True))
+            .values("name", "hex", "count").order_by("-count")
+        )
+        price = qs.aggregate(min=Min("base_price"), max=Max("base_price"))
+        return Response({
+            "categories": categories,
+            "styles": styles,
+            "rooms": rooms,
+            "colors": colors,
+            "price": {"min": price["min"] or 0, "max": price["max"] or 0},
+        })
 
 
 class ProductReviewList(generics.ListCreateAPIView):
