@@ -15,12 +15,11 @@ def current_period():
 def get_quota(user):
     """Return (creating if needed) the user's quota row for this month.
 
-    Limits are pulled from the user's tariff, falling back to defaults.
+    Limits use the standard defaults (per-tariff AI limits were removed).
     """
 
-    tariff = user.ai_quota_plan
-    token_limit = (tariff.ai_monthly_token_limit if tariff else None) or DEFAULT_TOKEN_LIMIT
-    image_limit = (tariff.ai_image_monthly_limit if tariff else None) or DEFAULT_IMAGE_LIMIT
+    token_limit = DEFAULT_TOKEN_LIMIT
+    image_limit = DEFAULT_IMAGE_LIMIT
 
     quota, created = AIUsageQuota.objects.get_or_create(
         user=user,

@@ -13,6 +13,5 @@ class ServiceTariffSerializer(serializers.ModelSerializer):
             "price_per_m2",
             "is_popular",
             "features",
-            "ai_chat_enabled",
             "ai_image_enabled",
         )

@@ -12,10 +12,7 @@ class ServiceTariff(BaseModel):
     price_per_m2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     is_popular = models.BooleanField(default=False)
     features = models.JSONField(default=list, blank=True)
-    ai_chat_enabled = models.BooleanField(default=False)
     ai_image_enabled = models.BooleanField(default=False)
-    ai_monthly_token_limit = models.PositiveIntegerField(null=True, blank=True)
-    ai_image_monthly_limit = models.PositiveIntegerField(null=True, blank=True)
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
