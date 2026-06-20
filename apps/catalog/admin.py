@@ -13,6 +13,8 @@ from .models import (
     ProductImage,
     ProductVariant,
     Review,
+    Room,
+    Style,
 )
 
 
@@ -37,6 +39,22 @@ class CategoryAdmin(TranslationAdmin, ModelAdmin):
 class ColorAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("name_uz", "name_ru", "hex")
     search_fields = ("name_uz", "name_ru")
+
+
+@admin.register(Style)
+class StyleAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("slug", "name_uz", "sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("slug", "name_uz", "name_ru")
+    prepopulated_fields = {"slug": ("name_uz",)}
+
+
+@admin.register(Room)
+class RoomAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("slug", "name_uz", "sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("slug", "name_uz", "name_ru")
+    prepopulated_fields = {"slug": ("name_uz",)}
 
 
 @admin.register(Product)
