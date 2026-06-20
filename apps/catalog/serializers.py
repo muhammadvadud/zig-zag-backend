@@ -34,14 +34,18 @@ class ImageUrlMixin:
 
 class CategorySerializer(ImageUrlMixin, serializers.ModelSerializer):
     icon = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
     products_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Category
-        fields = ("slug", "name", "icon", "sort_order", "products_count")
+        fields = ("slug", "name", "icon", "image", "sort_order", "products_count")
 
     def get_icon(self, obj):
         return self.abs_url(obj.icon)
+
+    def get_image(self, obj):
+        return self.abs_url(obj.image)
 
 
 class ColorSerializer(serializers.ModelSerializer):
