@@ -45,19 +45,19 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Demo ma'lumotlar yuklandi."))
 
     def _tariffs(self):
-        # code, name_uz, name_ru, price, price_per_m2, is_popular, ai_image_enabled, feats_uz, feats_ru
+        # code, name_uz, name_ru, price, price_per_m2, is_popular, feats_uz, feats_ru
         data = [
-            ("smart", "Smart", "Смарт", 0, None, False, False,
+            ("smart", "Smart", "Смарт", 0, None, False,
              ["Bepul maslahat", "Tikish", "Kafolat"],
              ["Бесплатная консультация", "Пошив", "Гарантия"]),
-            ("lux", "Lux", "Люкс", 0, 24990, True, True,
+            ("lux", "Lux", "Люкс", 0, 24990, True,
              ["Bepul maslahat", "Tikish", "Kafolat", "Sun'iy rasm", "Maxsus dizayn"],
              ["Бесплатная консультация", "Пошив", "Гарантия", "AI-визуализация", "Дизайн под интерьер"]),
-            ("premium", "Premium", "Премиум", 0, 59990, False, True,
+            ("premium", "Premium", "Премиум", 0, 59990, False,
              ["Bepul maslahat", "Tikish", "Kafolat", "Sun'iy rasm", "Maxsus dizayn", "O'lchov", "O'rnatish"],
              ["Бесплатная консультация", "Пошив", "Гарантия", "AI-визуализация", "Дизайн под интерьер", "Замер", "Монтаж"]),
         ]
-        for i, (code, nu, nr, price, ppm, pop, img, fu, fr) in enumerate(data):
+        for i, (code, nu, nr, price, ppm, pop, fu, fr) in enumerate(data):
             ServiceTariff.objects.update_or_create(
                 code=code,
                 defaults={
@@ -68,7 +68,6 @@ class Command(BaseCommand):
                     "is_popular": pop,
                     "features_uz": fu,
                     "features_ru": fr,
-                    "ai_image_enabled": img,
                     "sort_order": i,
                 },
             )

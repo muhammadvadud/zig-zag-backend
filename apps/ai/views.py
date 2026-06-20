@@ -113,9 +113,6 @@ class AIImageCreate(APIView):
 
     def post(self, request):
         user = request.user
-        tariff = user.ai_quota_plan
-        if tariff and not tariff.ai_image_enabled:
-            raise PermissionDenied("Tarifingizda AI rasm xizmati yo'q.")
 
         # Idempotency: a repeated request with the same key returns the first job.
         idem = request.headers.get("Idempotency-Key", "")
