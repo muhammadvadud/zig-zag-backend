@@ -28,7 +28,9 @@ class OrdersView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = Order.objects.prefetch_related("items")
+        qs = Order.objects.prefetch_related(
+            "items__variant__product__images", "items__variant__color", "items__service_tariff"
+        )
         user = self.request.user
         if user.role in ("manager", "admin"):
             return qs
@@ -58,7 +60,7 @@ class OrdersView(generics.ListAPIView):
             payment_provider=provider,
         )
 
-        payload = OrderSerializer(order).data
+        payload = OrderSerializer(order, context={"request": request}).data
         if provider:
             payload["payment_url"] = build_payment_url(order, provider)
         return Response(payload, status=status.HTTP_201_CREATED)
@@ -70,7 +72,9 @@ class OrderDetail(generics.RetrieveAPIView):
     lookup_field = "order_number"
 
     def get_queryset(self):
-        qs = Order.objects.prefetch_related("items")
+        qs = Order.objects.prefetch_related(
+            "items__variant__product__images", "items__variant__color", "items__service_tariff"
+        )
         user = self.request.user
         if user.role in ("manager", "admin"):
             return qs
@@ -88,7 +92,7 @@ class OrderCancelView(APIView):
             raise BusinessError("Bu buyurtmani bekor qilib bo'lmaydi.")
         order.status = "cancelled"
         order.save(update_fields=["status", "updated_at"])
-        return Response(OrderSerializer(order).data)
+        return Response(OrderSerializer(order, context={"request": request}).data)
 
 
 class AdminOrderList(generics.ListAPIView):
@@ -111,7 +115,7 @@ class AdminOrderUpdate(APIView):
             raise BusinessError(f"'{order.status}' dan '{new_status}' ga o'tib bo'lmaydi.")
         order.status = new_status
         order.save(update_fields=["status", "updated_at"])
-        return Response(OrderSerializer(order).data)
+        return Response(OrderSerializer(order, context={"request": request}).data)
 
 
 class MeasurementList(generics.ListCreateAPIView):

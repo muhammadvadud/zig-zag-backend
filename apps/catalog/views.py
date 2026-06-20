@@ -113,6 +113,11 @@ class ProductFacets(generics.GenericAPIView):
             for r in qs.values("category__slug").annotate(count=Count("id")).order_by("-count")
             if r["category__slug"]
         ]
+        materials = [
+            {"value": r["material"], "count": r["count"]}
+            for r in qs.exclude(material="").values("material").annotate(count=Count("id")).order_by("-count")
+            if r["material"]
+        ]
         styles = list(
             Style.objects.filter(products__in=ids)
             .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
@@ -131,6 +136,7 @@ class ProductFacets(generics.GenericAPIView):
         price = qs.aggregate(min=Min("base_price"), max=Max("base_price"))
         return Response({
             "categories": categories,
+            "materials": materials,
             "styles": styles,
             "rooms": rooms,
             "colors": colors,

@@ -7,12 +7,24 @@ from .models import MeasurementRequest, Order, OrderItem
 
 class OrderItemSerializer(serializers.ModelSerializer):
     service_tariff = serializers.SlugRelatedField(slug_field="code", read_only=True)
+    product_id = serializers.IntegerField(source="variant.product.id", read_only=True)
+    product_slug = serializers.CharField(source="variant.product.slug", read_only=True)
+    variant_id = serializers.IntegerField(source="variant.id", read_only=True)
+    color = serializers.CharField(source="variant.color.name", read_only=True)
+    color_hex = serializers.CharField(source="variant.color.hex", read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
         fields = (
             "id",
+            "product_id",
+            "product_slug",
+            "variant_id",
             "product_name_snapshot",
+            "color",
+            "color_hex",
+            "image",
             "unit_price",
             "quantity",
             "width_cm",
@@ -20,6 +32,16 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "service_tariff",
             "line_total",
         )
+
+    def get_image(self, obj):
+        product = obj.variant.product
+        imgs = list(product.images.all())
+        main = next((i for i in imgs if i.is_main), None) or (imgs[0] if imgs else None)
+        if not main:
+            return None
+        request = self.context.get("request")
+        url = main.image.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class OrderSerializer(serializers.ModelSerializer):

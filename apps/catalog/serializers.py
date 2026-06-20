@@ -117,6 +117,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "main_image",
             "colors",
             "colors_count",
+            "material",
             "styles",
             "rooms",
             "reviews_count",
@@ -140,7 +141,6 @@ class ProductDetailSerializer(ProductListSerializer):
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + (
             "description",
-            "material",
             "price_per_m2",
             "views_count",
             "images",
