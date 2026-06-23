@@ -178,6 +178,31 @@ class Banner(BaseModel):
         ordering = ["sort_order"]
 
 
+class HeroContent(BaseModel):
+    """Bosh sahifa hero blokidagi (banner oldidagi) matnlar — bitta faol yozuv."""
+
+    eyebrow = models.CharField(max_length=120, blank=True, default="")
+    title = models.CharField(max_length=180, blank=True, default="")
+    title_italic = models.CharField(max_length=120, blank=True, default="")
+    description = models.CharField(max_length=400, blank=True, default="")
+    stat1_value = models.CharField(max_length=40, blank=True, default="")
+    stat1_label = models.CharField(max_length=60, blank=True, default="")
+    stat2_value = models.CharField(max_length=40, blank=True, default="")
+    stat2_label = models.CharField(max_length=60, blank=True, default="")
+    stat3_value = models.CharField(max_length=40, blank=True, default="")
+    stat3_label = models.CharField(max_length=60, blank=True, default="")
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order"]
+        verbose_name = "Hero content"
+        verbose_name_plural = "Hero content"
+
+    def __str__(self):
+        return self.title or f"Hero #{self.pk}"
+
+
 class FAQ(BaseModel):
     question = models.CharField(max_length=255, default="")
     answer = models.TextField(default="")

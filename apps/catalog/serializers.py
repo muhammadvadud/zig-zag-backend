@@ -7,6 +7,7 @@ from .models import (
     Collection,
     Color,
     Favorite,
+    HeroContent,
     Product,
     ProductImage,
     ProductVariant,
@@ -224,3 +225,21 @@ class FAQSerializer(serializers.ModelSerializer):
     class Meta:
         model = FAQ
         fields = ("id", "question", "answer")
+
+
+class HeroContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeroContent
+        fields = (
+            "id",
+            "eyebrow",
+            "title",
+            "title_italic",
+            "description",
+            "stat1_value",
+            "stat1_label",
+            "stat2_value",
+            "stat2_label",
+            "stat3_value",
+            "stat3_label",
+        )

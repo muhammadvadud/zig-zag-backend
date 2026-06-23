@@ -1,6 +1,6 @@
 from modeltranslation.translator import TranslationOptions, register
 
-from .models import FAQ, Banner, Category, Collection, Color, Product, Room, Style
+from .models import FAQ, Banner, Category, Collection, Color, HeroContent, Product, Room, Style
 
 
 @register(Category)
@@ -41,3 +41,19 @@ class BannerTranslationOptions(TranslationOptions):
 @register(FAQ)
 class FAQTranslationOptions(TranslationOptions):
     fields = ("question", "answer")
+
+
+@register(HeroContent)
+class HeroContentTranslationOptions(TranslationOptions):
+    fields = (
+        "eyebrow",
+        "title",
+        "title_italic",
+        "description",
+        "stat1_value",
+        "stat1_label",
+        "stat2_value",
+        "stat2_label",
+        "stat3_value",
+        "stat3_label",
+    )

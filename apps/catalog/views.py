@@ -15,6 +15,7 @@ from .models import (
     Collection,
     Color,
     Favorite,
+    HeroContent,
     Product,
     Review,
     Room,
@@ -27,6 +28,7 @@ from .serializers import (
     CollectionSerializer,
     FAQSerializer,
     FavoriteSerializer,
+    HeroContentSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
     ReviewSerializer,
@@ -228,6 +230,19 @@ class FAQList(generics.ListAPIView):
     permission_classes = [AllowAny]
     pagination_class = None
     queryset = FAQ.objects.filter(is_active=True)
+
+
+class HeroContentView(generics.GenericAPIView):
+    """Bosh sahifa hero matnlari — faol yozuvni bitta obyekt qilib qaytaradi."""
+
+    serializer_class = HeroContentSerializer
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        obj = HeroContent.objects.filter(is_active=True).first()
+        if obj is None:
+            return Response({})
+        return Response(self.get_serializer(obj).data)
 
 
 class FavoriteList(generics.ListCreateAPIView):

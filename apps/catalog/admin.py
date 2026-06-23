@@ -9,6 +9,7 @@ from .models import (
     Collection,
     Color,
     Favorite,
+    HeroContent,
     Product,
     ProductImage,
     ProductVariant,
@@ -116,3 +117,9 @@ class FAQAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("question_uz", "sort_order", "is_active")
     list_filter = ("is_active",)
     search_fields = ("question_uz", "question_ru")
+
+
+@admin.register(HeroContent)
+class HeroContentAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("title_uz", "sort_order", "is_active")
+    list_filter = ("is_active",)

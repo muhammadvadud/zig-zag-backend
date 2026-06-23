@@ -14,6 +14,7 @@ from apps.catalog.models import (
     Category,
     Collection,
     Color,
+    HeroContent,
     Product,
     ProductVariant,
     Review,
@@ -41,6 +42,7 @@ class Command(BaseCommand):
         styles = self._styles()
         rooms = self._rooms()
         self._catalog(colors, styles, rooms)
+        self._hero()
         self._banners()
         self._collections()
         self._reviews()
@@ -182,6 +184,30 @@ class Command(BaseCommand):
                     color=color,
                     defaults={"sku": f"ZZ-{sku}", "stock": 20},
                 )
+
+    def _hero(self):
+        HeroContent.objects.update_or_create(
+            sort_order=0,
+            defaults={
+                "eyebrow_uz": "Zig Zag · Premium pardalar",
+                "eyebrow_ru": "Премиум шторы · Узбекистан",
+                "title_uz": "Uy — sizniki, Uslub ham",
+                "title_ru": "Тихая комната,",
+                "title_italic_uz": "shunday bo‘lsin..",
+                "title_italic_ru": "тихая жизнь.",
+                "description_uz": "Linen, velvet, sheer va ipakdan tikilgan premium pardalar. "
+                "Uyingizda tanlash, 24 soat ichida o'lchov.",
+                "description_ru": "Премиальные шторы из льна, велюра, тюля и шёлка. "
+                "Подбор у себя дома, замер за 24 часа.",
+                "stat1_value_uz": "12 yil", "stat1_value_ru": "12 лет",
+                "stat1_label_uz": "tajriba", "stat1_label_ru": "на рынке",
+                "stat2_value_uz": "2 400+", "stat2_value_ru": "2 400+",
+                "stat2_label_uz": "mijozlar", "stat2_label_ru": "клиентов",
+                "stat3_value_uz": "24h", "stat3_value_ru": "24h",
+                "stat3_label_uz": "o'lchov", "stat3_label_ru": "замер",
+                "is_active": True,
+            },
+        )
 
     def _banners(self):
         data = [
