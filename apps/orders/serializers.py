@@ -46,11 +46,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    customer = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = (
             "order_number",
+            "customer",
             "status",
             "subtotal",
             "discount",
@@ -63,6 +65,36 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = fields
+
+    def get_customer(self, obj):
+        return obj.user.full_name or obj.user.phone
+
+
+class AdminOrderRowSerializer(serializers.ModelSerializer):
+    """Compact order row for the admin list (no nested items)."""
+
+    customer = serializers.SerializerMethodField()
+    items_count = serializers.IntegerField(source="items.count", read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            "order_number",
+            "customer",
+            "items_count",
+            "status",
+            "payment_status",
+            "payment_provider",
+            "subtotal",
+            "discount",
+            "delivery_fee",
+            "total",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_customer(self, obj):
+        return obj.user.full_name or obj.user.phone
 
 
 class CheckoutSerializer(serializers.Serializer):

@@ -4,7 +4,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.common.permissions import IsStaffRole
+from apps.common.pagination import StandardPagination
+from apps.common.permissions import IsAdminRole, IsStaffRole
 from apps.orders.models import OrderItem
 
 from .filters import ProductFilter
@@ -24,6 +25,8 @@ from .models import (
 )
 from .serializers import (
     AdminProductSerializer,
+    AdminReviewSerializer,
+    AdminTailorSerializer,
     BannerSerializer,
     CategorySerializer,
     CollectionSerializer,
@@ -302,3 +305,32 @@ class AdminProductDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaffRole]
     queryset = Product.objects.all()
     lookup_field = "slug"
+
+
+class AdminTailorList(generics.ListCreateAPIView):
+    serializer_class = AdminTailorSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = StandardPagination
+    queryset = Tailor.objects.all()
+    search_fields = ["name_uz", "name_ru", "specialty_uz", "specialty_ru"]
+
+
+class AdminTailorDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminTailorSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Tailor.objects.all()
+
+
+class AdminReviewList(generics.ListAPIView):
+    serializer_class = AdminReviewSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = StandardPagination
+    queryset = Review.objects.select_related("product", "user")
+    filterset_fields = ["is_published"]
+    search_fields = ["comment", "product__name_uz", "product__name_ru"]
+
+
+class AdminReviewDetail(generics.RetrieveUpdateAPIView):
+    serializer_class = AdminReviewSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Review.objects.select_related("product", "user")

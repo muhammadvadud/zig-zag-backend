@@ -1,4 +1,6 @@
+import random
 import urllib.request
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -8,7 +10,9 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Avg
+from django.utils import timezone
 
+from apps.accounts.models import Address
 from apps.catalog.models import (
     Banner,
     Category,
@@ -16,13 +20,19 @@ from apps.catalog.models import (
     Color,
     HeroContent,
     Product,
+    ProductImage,
     ProductVariant,
     Review,
     Room,
     Style,
     Tailor,
 )
+from apps.orders.models import MeasurementRequest, Order, OrderItem
+from apps.payments.models import Payment
 from apps.services.models import ServiceTariff
+
+# Phone prefix that marks a user as demo-seeded (safe to flush).
+DEMO_PHONE_PREFIX = "+99893"
 
 _UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
 
@@ -34,10 +44,20 @@ def _download(url):
 
 
 class Command(BaseCommand):
-    help = "Populate the database with demo catalog and service data."
+    help = "Populate the database with demo catalog, orders and dashboard data."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--flush",
+            action="store_true",
+            help="Delete prior demo orders/payments/reviews/measurements/tailors/customers first.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if options.get("flush"):
+            self._flush()
+
         self._tariffs()
         colors = self._colors()
         styles = self._styles()
@@ -48,7 +68,38 @@ class Command(BaseCommand):
         self._banners()
         self._collections()
         self._reviews()
+
+        self._ensure_product_assets(colors)
+        customers = self._customers()
+        orders = self._orders(customers)
+        self._measurements(customers)
+        self._extra_reviews(customers)
+        self._low_stock()
+
         self.stdout.write(self.style.SUCCESS("Demo ma'lumotlar yuklandi."))
+        self.stdout.write("--- Summary ---")
+        self.stdout.write(f"Tailors:      {Tailor.objects.count()}")
+        self.stdout.write(f"Products:     {Product.objects.count()}")
+        self.stdout.write(f"Variants:     {ProductVariant.objects.count()}")
+        self.stdout.write(f"Customers:    {get_user_model().objects.filter(role='customer').count()}")
+        self.stdout.write(f"Orders:       {Order.objects.count()}")
+        self.stdout.write(f"Order items:  {OrderItem.objects.count()}")
+        self.stdout.write(f"Payments:     {Payment.objects.count()}")
+        self.stdout.write(f"Reviews:      {Review.objects.count()} (unpublished: {Review.objects.filter(is_published=False).count()})")
+        self.stdout.write(f"Measurements: {MeasurementRequest.objects.count()}")
+        self.stdout.write(f"Low stock:    {Product.objects.filter(stock__lt=10).count()}")
+
+    def _flush(self):
+        OrderItem.objects.all().delete()
+        Payment.objects.all().delete()
+        MeasurementRequest.objects.all().delete()
+        Order.objects.all().delete()
+        Review.objects.all().delete()
+        Tailor.objects.all().delete()
+        # Demo customers (seeded with the DEMO_PHONE_PREFIX); keep admin/managers.
+        get_user_model().objects.filter(
+            role="customer", phone__startswith=DEMO_PHONE_PREFIX
+        ).delete()
 
     def _tariffs(self):
         # code, name_uz, name_ru, price, price_per_m2, is_popular, feats_uz, feats_ru
@@ -144,6 +195,7 @@ class Command(BaseCommand):
             ("Feruza Xasanova", "Феруза Хасанова", "FX", "Blackout · Velvet", "Блекаут · Бархат", "4.9", 215),
             ("Nodira Toshmatova", "Нодира Тошматова", "NT", "Silk · Sheer", "Шёлк · Тюль", "4.7", 98),
             ("Hulkar Rahimova", "Хулкар Рахимова", "HR", "Linen · Blackout", "Лён · Блекаут", "4.8", 162),
+            ("Sabina Azimova", "Сабина Азимова", "SA", "Sheer · Silk", "Тюль · Шёлк", "4.3", 74),
         ]
         tailors = []
         for i, (nu, nr, initials, spu, spr, rating, orders) in enumerate(data):
@@ -315,3 +367,205 @@ class Command(BaseCommand):
             agg = product.reviews.filter(is_published=True).aggregate(a=Avg("rating"))["a"] or 0
             product.rating_avg = round(Decimal(agg), 2)
             product.save(update_fields=["rating_avg"])
+
+    # ------------------------------------------------------------------
+    # Dashboard demo data (orders, customers, payments, measurements...)
+    # ------------------------------------------------------------------
+
+    def _ensure_product_assets(self, colors):
+        """Guarantee every product has a variant + a main image row."""
+        palette = list(colors.values()) or list(Color.objects.all())
+        for product in Product.objects.all():
+            if not product.variants.exists():
+                color = palette[0] if palette else Color.objects.create(name="Krem", hex="#EBE3D5")
+                ProductVariant.objects.get_or_create(
+                    product=product,
+                    color=color,
+                    defaults={"sku": f"ZZ-AUTO-{product.id}", "stock": 20},
+                )
+            if not product.images.exists():
+                # Lightweight placeholder image row so the dashboard has thumbnails.
+                img = ProductImage(product=product, is_main=True, sort_order=0)
+                img.image.save(
+                    f"demo-{product.slug}.png",
+                    ContentFile(_PLACEHOLDER_PNG),
+                    save=True,
+                )
+
+    def _customers(self):
+        User = get_user_model()
+        names = [
+            "Aziz Karimov", "Nigora Sobirova", "Bekzod Tursunov", "Kamola Yusupova",
+            "Sherzod Aliyev", "Madina Rustamova", "Ilhom Qodirov", "Zarina Hamidova",
+            "Otabek Nazarov", "Sevara Tojiyeva", "Jahongir Umarov", "Dilfuza Salimova",
+            "Rustam Ergashev", "Gulnoza Mirzaeva", "Akmal Yo'ldoshev",
+        ]
+        now = timezone.now()
+        customers = []
+        for i, name in enumerate(names):
+            phone = f"{DEMO_PHONE_PREFIX}{1000000 + i:07d}"[:13]
+            joined = now - timedelta(days=random.randint(0, 40), hours=random.randint(0, 23))
+            user, created = User.objects.get_or_create(
+                phone=phone,
+                defaults={
+                    "full_name": name,
+                    "role": "customer",
+                    "is_phone_verified": True,
+                    "date_joined": joined,
+                },
+            )
+            if created:
+                # date_joined has a default, so force it onto the spread window.
+                User.objects.filter(pk=user.pk).update(date_joined=joined)
+            customers.append(user)
+            Address.objects.get_or_create(
+                user=user,
+                city="Toshkent",
+                street="Amir Temur",
+                home=str(10 + i),
+                defaults={"region": "Toshkent", "is_default": True},
+            )
+        return customers
+
+    def _orders(self, customers):
+        if not customers:
+            return []
+        variants = list(ProductVariant.objects.select_related("product"))
+        if not variants:
+            return []
+
+        now = timezone.now()
+        statuses = (
+            ["completed"] * 6
+            + ["paid"] * 4
+            + ["processing"] * 3
+            + ["shipped"] * 2
+            + ["measuring", "sewing", "pending", "cancelled"]
+        )
+        orders = []
+        # Continue numbering after any existing demo orders so re-running
+        # (without --flush) appends rather than colliding on order_number.
+        existing = (
+            Order.objects.filter(order_number__startswith="ZZ-DEMO-")
+            .order_by("-order_number")
+            .first()
+        )
+        start_seq = int(existing.order_number.split("-")[-1]) if existing else 0
+        for i in range(40):
+            n = start_seq + i + 1
+            user = random.choice(customers)
+            status = random.choice(statuses)
+            paid = status in ("completed", "paid", "shipped", "processing", "measuring", "sewing")
+            payment_status = "paid" if paid else ("failed" if status == "cancelled" and random.random() < 0.3 else "unpaid")
+            provider = random.choice(["payme", "click"]) if paid else ""
+            created = now - timedelta(days=random.randint(0, 29), hours=random.randint(0, 23))
+
+            order = Order.objects.create(
+                order_number=f"ZZ-DEMO-{n:04d}",
+                user=user,
+                status=status,
+                payment_status=payment_status,
+                payment_provider=provider,
+                comment=random.choice(["", "", "Tezroq yetkazib bering", "Eshik oldiga qoldiring"]),
+            )
+            # Backdate created_at (auto_now_add ignores the constructor value).
+            Order.objects.filter(pk=order.pk).update(created_at=created)
+            order.created_at = created
+
+            subtotal = Decimal("0")
+            chosen = random.sample(variants, k=min(random.randint(1, 3), len(variants)))
+            for v in chosen:
+                qty = random.randint(1, 3)
+                unit = Decimal(random.randint(150000, 2500000))
+                line = unit * qty
+                subtotal += line
+                OrderItem.objects.create(
+                    order=order,
+                    variant=v,
+                    product_name_snapshot=v.product.name or v.product.slug,
+                    unit_price=unit,
+                    quantity=qty,
+                    line_total=line,
+                )
+            delivery = Decimal(random.choice([0, 0, 30000, 50000]))
+            discount = Decimal(random.choice([0, 0, 0, 50000, 100000]))
+            total = subtotal - discount + delivery
+            Order.objects.filter(pk=order.pk).update(
+                subtotal=subtotal, discount=discount, delivery_fee=delivery, total=total
+            )
+            order.subtotal, order.discount, order.delivery_fee, order.total = (
+                subtotal, discount, delivery, total,
+            )
+
+            if payment_status == "paid" and provider:
+                Payment.objects.get_or_create(
+                    provider=provider,
+                    provider_transaction_id=f"demo-{order.order_number}",
+                    defaults={
+                        "order": order,
+                        "amount": total,
+                        "state": Payment.STATE_COMPLETED,
+                        "paid_at": created,
+                    },
+                )
+            orders.append(order)
+        return orders
+
+    def _measurements(self, customers):
+        if not customers:
+            return
+        now = timezone.now()
+        slots = ["09:00-12:00", "12:00-15:00", "15:00-18:00", "18:00-21:00"]
+        statuses = ["requested"] * 4 + ["scheduled", "scheduled", "done", "cancelled"]
+        for i in range(8):
+            user = random.choice(customers)
+            address = user.addresses.first()
+            if not address:
+                continue
+            MeasurementRequest.objects.create(
+                user=user,
+                address=address,
+                preferred_date=(now + timedelta(days=random.randint(-5, 10))).date(),
+                time_slot=random.choice(slots),
+                status=statuses[i],
+                note=random.choice(["", "Mehmonxona uchun", "2 ta deraza"]),
+            )
+
+    def _extra_reviews(self, customers):
+        """Add unpublished (pending moderation) reviews to round out the mix."""
+        if not customers:
+            return
+        products = list(Product.objects.all())
+        comments = [
+            "Mahsulot kelganini kutyapman, lekin ko'rinishi yaxshi.",
+            "Narxi biroz qimmat, ammo sifati arziydi.",
+            "Yetkazib berish biroz kechikdi.",
+            "Rangi rasmga mos, lekin matosi yupqaroq.",
+            "Umuman olganda qoniqdim.",
+        ]
+        for product in products:
+            sample = random.sample(customers, k=min(random.randint(2, 4), len(customers)))
+            for user in sample:
+                Review.objects.get_or_create(
+                    product=product,
+                    user=user,
+                    defaults={
+                        "rating": random.randint(3, 5),
+                        "comment": random.choice(comments),
+                        "is_published": random.random() < 0.4,
+                    },
+                )
+
+    def _low_stock(self):
+        """Drop a couple of products into the low-stock band for the demo."""
+        for product in Product.objects.all()[:2]:
+            product.stock = random.randint(2, 9)
+            product.save(update_fields=["stock"])
+
+
+# 1x1 transparent PNG used as a placeholder product thumbnail.
+_PLACEHOLDER_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc````"
+    b"\x00\x00\x00\x05\x00\x01\xa5\xf6E@\x00\x00\x00\x00IEND\xaeB`\x82"
+)

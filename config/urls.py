@@ -19,6 +19,7 @@ api_v1 = [
     path("", include("apps.orders.urls")),
     path("", include("apps.payments.urls")),
     path("", include("apps.ai.urls")),
+    path("", include("apps.common.urls")),
 ]
 
 urlpatterns = [

@@ -232,6 +232,60 @@ class AdminProductSerializer(serializers.ModelSerializer):
             "is_new",
             "is_active",
             "stock",
+            "tailor",
+        )
+
+
+class AdminTailorSerializer(ImageUrlMixin, serializers.ModelSerializer):
+    """Full read/write tailor representation for staff management."""
+
+    photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Tailor
+        fields = (
+            "id",
+            "name_uz",
+            "name_ru",
+            "initials",
+            "specialty_uz",
+            "specialty_ru",
+            "rating",
+            "orders_count",
+            "sort_order",
+            "is_active",
+            "photo",
+        )
+
+    def get_photo(self, obj):
+        return self.abs_url(obj.photo)
+
+
+class AdminReviewSerializer(serializers.ModelSerializer):
+    product = serializers.CharField(source="product.name", read_only=True)
+    product_slug = serializers.CharField(source="product.slug", read_only=True)
+    user_name = serializers.CharField(source="user.full_name", read_only=True)
+
+    class Meta:
+        model = Review
+        fields = (
+            "id",
+            "product",
+            "product_slug",
+            "user_name",
+            "rating",
+            "comment",
+            "is_published",
+            "created_at",
+        )
+        read_only_fields = (
+            "id",
+            "product",
+            "product_slug",
+            "user_name",
+            "rating",
+            "comment",
+            "created_at",
         )
 
 

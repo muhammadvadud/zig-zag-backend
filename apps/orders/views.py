@@ -13,6 +13,7 @@ from apps.payments.services import build_payment_url
 from .models import MeasurementRequest, Order
 from .serializers import (
     AdminMeasurementSerializer,
+    AdminOrderRowSerializer,
     CheckoutSerializer,
     MeasurementRequestSerializer,
     OrderSerializer,
@@ -96,15 +97,24 @@ class OrderCancelView(APIView):
 
 
 class AdminOrderList(generics.ListAPIView):
-    serializer_class = OrderSerializer
+    serializer_class = AdminOrderRowSerializer
     permission_classes = [IsStaffRole]
-    queryset = Order.objects.prefetch_related("items")
+    queryset = Order.objects.select_related("user").prefetch_related("items")
     filterset_fields = ["status", "payment_status"]
     search_fields = ["order_number", "user__phone"]
 
 
 class AdminOrderUpdate(APIView):
     permission_classes = [IsStaffRole]
+
+    def get(self, request, order_number):
+        order = generics.get_object_or_404(
+            Order.objects.select_related("user").prefetch_related(
+                "items__variant__product__images", "items__variant__color", "items__service_tariff"
+            ),
+            order_number=order_number,
+        )
+        return Response(OrderSerializer(order, context={"request": request}).data)
 
     def patch(self, request, order_number):
         order = generics.get_object_or_404(Order, order_number=order_number)
