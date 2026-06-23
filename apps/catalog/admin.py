@@ -16,6 +16,7 @@ from .models import (
     Review,
     Room,
     Style,
+    Tailor,
 )
 
 
@@ -58,11 +59,19 @@ class RoomAdmin(TranslationAdmin, ModelAdmin):
     prepopulated_fields = {"slug": ("name_uz",)}
 
 
+@admin.register(Tailor)
+class TailorAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("name_uz", "specialty_uz", "rating", "orders_count", "sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name_uz", "name_ru", "specialty_uz")
+
+
 @admin.register(Product)
 class ProductAdmin(TranslationAdmin, ModelAdmin):
-    list_display = ("slug", "name_uz", "category", "base_price", "discount_percent", "stock", "is_new", "is_active")
-    list_filter = ("category", "is_new", "is_active")
+    list_display = ("slug", "name_uz", "category", "tailor", "base_price", "discount_percent", "stock", "is_new", "is_active")
+    list_filter = ("category", "tailor", "is_new", "is_active")
     search_fields = ("slug", "name_uz", "name_ru")
+    autocomplete_fields = ("tailor",)
     prepopulated_fields = {"slug": ("name_uz",)}
     inlines = [ProductVariantInline, ProductImageInline]
 

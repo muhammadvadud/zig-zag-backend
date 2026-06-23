@@ -20,6 +20,7 @@ from .models import (
     Review,
     Room,
     Style,
+    Tailor,
 )
 from .serializers import (
     AdminProductSerializer,
@@ -29,6 +30,7 @@ from .serializers import (
     FAQSerializer,
     FavoriteSerializer,
     HeroContentSerializer,
+    TailorSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
     ReviewSerializer,
@@ -52,7 +54,7 @@ class CategoryList(generics.ListAPIView):
 def _product_queryset():
     return (
         Product.objects.filter(is_active=True)
-        .select_related("category")
+        .select_related("category", "tailor")
         .prefetch_related("images", "variants__color", "styles", "rooms")
         .annotate(
             reviews_count=Count(
@@ -223,6 +225,13 @@ class BannerList(generics.ListAPIView):
     permission_classes = [AllowAny]
     pagination_class = None
     queryset = Banner.objects.filter(is_active=True)
+
+
+class TailorList(generics.ListAPIView):
+    serializer_class = TailorSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+    queryset = Tailor.objects.filter(is_active=True)
 
 
 class FAQList(generics.ListAPIView):

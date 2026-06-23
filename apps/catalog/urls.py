@@ -17,12 +17,14 @@ from .views import (
     ProductReviewList,
     RoomList,
     StyleList,
+    TailorList,
 )
 
 urlpatterns = [
     path("categories/", CategoryList.as_view(), name="category-list"),
     path("styles/", StyleList.as_view(), name="style-list"),
     path("rooms/", RoomList.as_view(), name="room-list"),
+    path("tailors/", TailorList.as_view(), name="tailor-list"),
     path("products/", ProductList.as_view(), name="product-list"),
     path("products/facets/", ProductFacets.as_view(), name="product-facets"),
     path("products/<slug:slug>/", ProductDetail.as_view(), name="product-detail"),

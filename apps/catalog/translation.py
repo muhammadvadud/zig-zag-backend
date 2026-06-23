@@ -1,6 +1,6 @@
 from modeltranslation.translator import TranslationOptions, register
 
-from .models import FAQ, Banner, Category, Collection, Color, HeroContent, Product, Room, Style
+from .models import FAQ, Banner, Category, Collection, Color, HeroContent, Product, Room, Style, Tailor
 
 
 @register(Category)
@@ -16,6 +16,11 @@ class StyleTranslationOptions(TranslationOptions):
 @register(Room)
 class RoomTranslationOptions(TranslationOptions):
     fields = ("name",)
+
+
+@register(Tailor)
+class TailorTranslationOptions(TranslationOptions):
+    fields = ("name", "specialty")
 
 
 @register(Color)

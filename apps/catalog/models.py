@@ -58,6 +58,25 @@ class Room(BaseModel):
         return self.slug
 
 
+class Tailor(BaseModel):
+    """Chevar usta — mahsulotni tikuvchi (mahsulotga biriktiriladi)."""
+
+    name = models.CharField(max_length=120, default="")
+    initials = models.CharField(max_length=4, blank=True, default="")
+    specialty = models.CharField(max_length=120, blank=True, default="")
+    photo = models.ImageField(upload_to="tailors/", null=True, blank=True)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    orders_count = models.PositiveIntegerField(default=0)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Product(BaseModel):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     slug = models.SlugField(unique=True)
@@ -74,6 +93,9 @@ class Product(BaseModel):
     views_count = models.PositiveIntegerField(default=0)
     styles = models.ManyToManyField("Style", blank=True, related_name="products")
     rooms = models.ManyToManyField("Room", blank=True, related_name="products")
+    tailor = models.ForeignKey(
+        "Tailor", on_delete=models.SET_NULL, null=True, blank=True, related_name="products"
+    )
 
     class Meta:
         ordering = ["-created_at"]

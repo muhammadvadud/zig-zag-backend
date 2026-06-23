@@ -20,6 +20,7 @@ from apps.catalog.models import (
     Review,
     Room,
     Style,
+    Tailor,
 )
 from apps.services.models import ServiceTariff
 
@@ -41,7 +42,8 @@ class Command(BaseCommand):
         colors = self._colors()
         styles = self._styles()
         rooms = self._rooms()
-        self._catalog(colors, styles, rooms)
+        tailors = self._tailors()
+        self._catalog(colors, styles, rooms, tailors)
         self._hero()
         self._banners()
         self._collections()
@@ -135,7 +137,30 @@ class Command(BaseCommand):
             rooms[slug] = room
         return rooms
 
-    def _catalog(self, colors, styles, rooms):
+    def _tailors(self):
+        data = [
+            ("Dilnoza Yusupova", "Дилноза Юсупова", "DY", "Linen · Sheer", "Лён · Тюль", "4.9", 187),
+            ("Mohira Karimova", "Мохира Каримова", "MK", "Velvet · Silk", "Бархат · Шёлк", "4.8", 143),
+            ("Feruza Xasanova", "Феруза Хасанова", "FX", "Blackout · Velvet", "Блекаут · Бархат", "4.9", 215),
+            ("Nodira Toshmatova", "Нодира Тошматова", "NT", "Silk · Sheer", "Шёлк · Тюль", "4.7", 98),
+            ("Hulkar Rahimova", "Хулкар Рахимова", "HR", "Linen · Blackout", "Лён · Блекаут", "4.8", 162),
+        ]
+        tailors = []
+        for i, (nu, nr, initials, spu, spr, rating, orders) in enumerate(data):
+            tailor, _ = Tailor.objects.update_or_create(
+                initials=initials,
+                defaults={
+                    "name_uz": nu, "name_ru": nr,
+                    "specialty_uz": spu, "specialty_ru": spr,
+                    "rating": Decimal(rating), "orders_count": orders,
+                    "sort_order": i,
+                },
+            )
+            tailors.append(tailor)
+        return tailors
+
+    def _catalog(self, colors, styles, rooms, tailors=None):
+        tailors = tailors or []
         categories = [
             ("linen", "Linen", "Лён"),
             ("velvet", "Velvet", "Бархат"),
@@ -162,7 +187,7 @@ class Command(BaseCommand):
              ["minimal", "scandi", "modern"], ["living", "kids"]),
         ]
         sku = 1000
-        for slug, cat_slug, nu, nr, mat, price, is_new, style_slugs, room_slugs in products:
+        for pi, (slug, cat_slug, nu, nr, mat, price, is_new, style_slugs, room_slugs) in enumerate(products):
             product, _ = Product.objects.update_or_create(
                 slug=slug,
                 defaults={
@@ -173,6 +198,7 @@ class Command(BaseCommand):
                     "base_price": Decimal(price),
                     "is_new": is_new,
                     "stock": 50,
+                    "tailor": tailors[pi % len(tailors)] if tailors else None,
                 },
             )
             product.styles.set([styles[s] for s in style_slugs if s in styles])

@@ -14,6 +14,7 @@ from .models import (
     Review,
     Room,
     Style,
+    Tailor,
 )
 
 
@@ -92,6 +93,17 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         fields = ("id", "sku", "color", "stock", "extra_price", "unit_price")
 
 
+class TailorSerializer(ImageUrlMixin, serializers.ModelSerializer):
+    photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Tailor
+        fields = ("id", "name", "initials", "specialty", "photo", "rating", "orders_count")
+
+    def get_photo(self, obj):
+        return self.abs_url(obj.photo)
+
+
 class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
     category = serializers.SlugRelatedField(slug_field="slug", read_only=True)
     final_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
@@ -138,6 +150,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
 class ProductDetailSerializer(ProductListSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
+    tailor = TailorSerializer(read_only=True)
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + (
@@ -146,6 +159,7 @@ class ProductDetailSerializer(ProductListSerializer):
             "views_count",
             "images",
             "variants",
+            "tailor",
         )
 
 
