@@ -1,3 +1,4 @@
+from django.utils.text import slugify
 from rest_framework import serializers
 
 from .models import (
@@ -310,4 +311,197 @@ class HeroContentSerializer(serializers.ModelSerializer):
             "stat2_label",
             "stat3_value",
             "stat3_label",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Admin (write) serializers
+# ---------------------------------------------------------------------------
+
+
+class SlugAutoMixin:
+    """Auto-generate a unique slug from ``slug_source`` when slug is blank.
+
+    Subclasses set ``slug_source`` to the field name to slugify (e.g. "name"
+    or "title"). Collisions are resolved by appending -2, -3, ...
+    """
+
+    slug_source = "name"
+
+    def _unique_slug(self, base, instance=None):
+        base = base or "item"
+        candidate = base
+        model = self.Meta.model
+        n = 2
+        qs = model.objects.all()
+        if instance is not None:
+            qs = qs.exclude(pk=instance.pk)
+        while qs.filter(slug=candidate).exists():
+            candidate = f"{base}-{n}"
+            n += 1
+        return candidate
+
+    def create(self, validated_data):
+        if not validated_data.get("slug"):
+            base = slugify(validated_data.get(self.slug_source, "") or "")
+            validated_data["slug"] = self._unique_slug(base)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Blank slug on edit: keep the existing one (don't overwrite with "").
+        if "slug" in validated_data and not validated_data["slug"]:
+            validated_data.pop("slug")
+        return super().update(instance, validated_data)
+
+
+class AdminCategorySerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
+    slug_source = "name"
+
+    class Meta:
+        model = Category
+        fields = (
+            "id",
+            "slug",
+            "name",
+            "icon",
+            "image",
+            "sort_order",
+            "is_active",
+        )
+        extra_kwargs = {
+            "slug": {"required": False, "allow_blank": True},
+            "icon": {"required": False},
+            "image": {"required": False},
+        }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["icon"] = self.abs_url(instance.icon)
+        data["image"] = self.abs_url(instance.image)
+        return data
+
+
+class AdminStyleSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
+    slug_source = "name"
+
+    class Meta:
+        model = Style
+        fields = (
+            "id",
+            "slug",
+            "name",
+            "blurb",
+            "image",
+            "sort_order",
+            "is_active",
+        )
+        extra_kwargs = {
+            "slug": {"required": False, "allow_blank": True},
+            "image": {"required": False},
+        }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image"] = self.abs_url(instance.image)
+        return data
+
+
+class AdminRoomSerializer(SlugAutoMixin, serializers.ModelSerializer):
+    slug_source = "name"
+
+    class Meta:
+        model = Room
+        fields = (
+            "id",
+            "slug",
+            "name",
+            "sort_order",
+            "is_active",
+        )
+        extra_kwargs = {
+            "slug": {"required": False, "allow_blank": True},
+        }
+
+
+class AdminColorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Color
+        fields = ("id", "name", "hex")
+
+
+class AdminCollectionSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
+    slug_source = "title"
+    products = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Product.objects.all(), required=False
+    )
+
+    class Meta:
+        model = Collection
+        fields = (
+            "id",
+            "slug",
+            "title",
+            "image",
+            "products",
+            "sort_order",
+            "is_active",
+        )
+        extra_kwargs = {
+            "slug": {"required": False, "allow_blank": True},
+            "image": {"required": False},
+        }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image"] = self.abs_url(instance.image)
+        return data
+
+
+class AdminBannerSerializer(ImageUrlMixin, serializers.ModelSerializer):
+    class Meta:
+        model = Banner
+        fields = (
+            "id",
+            "title",
+            "eyebrow",
+            "subtitle",
+            "cta",
+            "image",
+            "link",
+            "sort_order",
+            "is_active",
+        )
+        extra_kwargs = {
+            "image": {"required": True},
+        }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image"] = self.abs_url(instance.image)
+        return data
+
+
+class AdminFAQSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQ
+        fields = ("id", "question", "answer", "sort_order", "is_active")
+
+
+class AdminHeroContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeroContent
+        fields = (
+            "id",
+            "eyebrow",
+            "title",
+            "title_italic",
+            "description",
+            "stat1_value",
+            "stat1_label",
+            "stat2_value",
+            "stat2_label",
+            "stat3_value",
+            "stat3_label",
+            "sort_order",
+            "is_active",
         )
