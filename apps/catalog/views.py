@@ -24,8 +24,16 @@ from .models import (
     Tailor,
 )
 from .serializers import (
+    AdminBannerSerializer,
+    AdminCategorySerializer,
+    AdminCollectionSerializer,
+    AdminColorSerializer,
+    AdminFAQSerializer,
+    AdminHeroContentSerializer,
     AdminProductSerializer,
     AdminReviewSerializer,
+    AdminRoomSerializer,
+    AdminStyleSerializer,
     AdminTailorSerializer,
     BannerSerializer,
     CategorySerializer,
@@ -334,3 +342,112 @@ class AdminReviewDetail(generics.RetrieveUpdateAPIView):
     serializer_class = AdminReviewSerializer
     permission_classes = [IsAdminRole]
     queryset = Review.objects.select_related("product", "user")
+
+
+# ---------------------------------------------------------------------------
+# Admin CRUD: catalog & content entities (all rows, no is_active filter)
+# ---------------------------------------------------------------------------
+
+
+class AdminCategoryList(generics.ListCreateAPIView):
+    serializer_class = AdminCategorySerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Category.objects.all()
+
+
+class AdminCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminCategorySerializer
+    permission_classes = [IsAdminRole]
+    queryset = Category.objects.all()
+
+
+class AdminStyleList(generics.ListCreateAPIView):
+    serializer_class = AdminStyleSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Style.objects.all()
+
+
+class AdminStyleDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminStyleSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Style.objects.all()
+
+
+class AdminRoomList(generics.ListCreateAPIView):
+    serializer_class = AdminRoomSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Room.objects.all()
+
+
+class AdminRoomDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminRoomSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Room.objects.all()
+
+
+class AdminColorList(generics.ListCreateAPIView):
+    serializer_class = AdminColorSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Color.objects.all()
+
+
+class AdminColorDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminColorSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Color.objects.all()
+
+
+class AdminCollectionList(generics.ListCreateAPIView):
+    serializer_class = AdminCollectionSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Collection.objects.all()
+
+
+class AdminCollectionDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminCollectionSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Collection.objects.all()
+
+
+class AdminBannerList(generics.ListCreateAPIView):
+    serializer_class = AdminBannerSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Banner.objects.all()
+
+
+class AdminBannerDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminBannerSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Banner.objects.all()
+
+
+class AdminFAQList(generics.ListCreateAPIView):
+    serializer_class = AdminFAQSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = FAQ.objects.all()
+
+
+class AdminFAQDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminFAQSerializer
+    permission_classes = [IsAdminRole]
+    queryset = FAQ.objects.all()
+
+
+class AdminHeroList(generics.ListCreateAPIView):
+    serializer_class = AdminHeroContentSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = HeroContent.objects.all()
+
+
+class AdminHeroDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminHeroContentSerializer
+    permission_classes = [IsAdminRole]
+    queryset = HeroContent.objects.all()
