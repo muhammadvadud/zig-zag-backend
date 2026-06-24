@@ -42,8 +42,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    ai_quota_plan = serializers.SlugRelatedField(slug_field="code", read_only=True)
-
     class Meta:
         model = User
         fields = (
@@ -54,10 +52,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "role",
             "language",
             "is_phone_verified",
-            "ai_quota_plan",
             "date_joined",
         )
-        read_only_fields = ("id", "phone", "role", "is_phone_verified", "ai_quota_plan", "date_joined")
+        read_only_fields = ("id", "phone", "role", "is_phone_verified", "date_joined")
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -72,7 +69,6 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "is_active",
             "is_phone_verified",
             "language",
-            "ai_quota_plan",
             "date_joined",
         )
         read_only_fields = ("id", "phone", "date_joined", "is_phone_verified")

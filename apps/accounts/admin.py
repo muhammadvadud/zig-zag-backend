@@ -18,7 +18,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     search_fields = ("phone", "full_name", "email")
     fieldsets = (
         (None, {"fields": ("phone", "password")}),
-        ("Profil", {"fields": ("full_name", "email", "language", "ai_quota_plan")}),
+        ("Profil", {"fields": ("full_name", "email", "language")}),
         (
             "Ruxsatlar",
             {

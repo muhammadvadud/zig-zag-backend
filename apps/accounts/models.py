@@ -46,13 +46,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
     language = models.CharField(max_length=2, choices=LANG_CHOICES, default="uz")
-    ai_quota_plan = models.ForeignKey(
-        "services.ServiceTariff",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="users",
-    )
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()
