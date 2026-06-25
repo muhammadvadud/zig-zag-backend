@@ -280,9 +280,13 @@ class WorkList(generics.ListAPIView):
     serializer_class = WorkSerializer
     permission_classes = [AllowAny]
     pagination_class = None
+    # ?product=<id> bilan bitta mahsulotning ishlarini filtrlash mumkin.
+    filterset_fields = ["product", "room"]
     # Rasmsiz ishlar ko'rsatilmaydi (frontend next/image bo'sh src ni qabul qilmaydi).
     queryset = (
-        Work.objects.filter(is_active=True).exclude(image="").select_related("room")
+        Work.objects.filter(is_active=True)
+        .exclude(image="")
+        .select_related("room", "product")
     )
 
 

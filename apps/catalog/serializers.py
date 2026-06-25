@@ -338,7 +338,7 @@ class WorkSerializer(ImageUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Work
-        fields = ("id", "image", "room", "room_name", "tag", "is_tall")
+        fields = ("id", "image", "room", "room_name", "product", "tag", "is_tall")
 
     def get_image(self, obj):
         return self.abs_url(obj.image)

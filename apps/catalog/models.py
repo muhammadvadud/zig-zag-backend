@@ -262,6 +262,9 @@ class Work(BaseModel):
     room = models.ForeignKey(
         Room, on_delete=models.SET_NULL, null=True, blank=True, related_name="works"
     )
+    product = models.ForeignKey(
+        "Product", on_delete=models.SET_NULL, null=True, blank=True, related_name="works"
+    )
     tag = models.CharField(max_length=120, blank=True, default="")
     image = models.ImageField(upload_to="works/")
     is_tall = models.BooleanField(default=False)

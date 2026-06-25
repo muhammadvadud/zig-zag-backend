@@ -419,11 +419,20 @@ class Command(BaseCommand):
             ("office", "Silk · Cobalt", "Шёлк · Кобальт", False,
              "https://images.unsplash.com/photo-1513161455079-7dc1de15ef3e?w=900&q=85"),
         ]
+        # Teg materialiga qarab ishni mos mahsulotga bog'laymiz (detailda ko'rsatiladi).
+        product_by_keyword = {
+            "Velvet": Product.objects.filter(slug="velvet-shoh").first(),
+            "Linen": Product.objects.filter(slug="linen-sahar").first(),
+            "Sheer": Product.objects.filter(slug="sheer-nur").first(),
+            "Blackout": Product.objects.filter(slug="blackout-noir").first(),
+        }
         for i, (room_slug, tu, tr, is_tall, url) in enumerate(data):
+            keyword = tu.split(" ")[0]
             work, _ = Work.objects.update_or_create(
                 sort_order=i,
                 defaults={
                     "room": rooms.get(room_slug),
+                    "product": product_by_keyword.get(keyword),
                     "tag_uz": tu, "tag_ru": tr,
                     "is_tall": is_tall,
                 },

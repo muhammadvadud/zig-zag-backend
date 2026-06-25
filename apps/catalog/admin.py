@@ -145,5 +145,6 @@ class TestimonialAdmin(TranslationAdmin, ModelAdmin):
 
 @admin.register(Work)
 class WorkAdmin(TranslationAdmin, ModelAdmin):
-    list_display = ("__str__", "room", "tag_uz", "is_tall", "sort_order", "is_active")
-    list_filter = ("is_active", "is_tall", "room")
+    list_display = ("__str__", "product", "room", "tag_uz", "is_tall", "sort_order", "is_active")
+    list_filter = ("is_active", "is_tall", "room", "product")
+    autocomplete_fields = ("product",)
