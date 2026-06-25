@@ -70,8 +70,8 @@ class TailorAdmin(TranslationAdmin, ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(TranslationAdmin, ModelAdmin):
-    list_display = ("slug", "name_uz", "category", "tailor", "base_price", "discount_percent", "stock", "is_new", "is_active")
-    list_filter = ("category", "tailor", "is_new", "is_active")
+    list_display = ("slug", "name_uz", "category", "tailor", "base_price", "discount_percent", "stock", "is_new", "custom_only", "is_active")
+    list_filter = ("category", "tailor", "is_new", "custom_only", "is_active")
     search_fields = ("slug", "name_uz", "name_ru")
     autocomplete_fields = ("tailor",)
     prepopulated_fields = {"slug": ("name_uz",)}

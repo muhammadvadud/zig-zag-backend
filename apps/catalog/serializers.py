@@ -128,6 +128,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "discount_percent",
             "final_price",
             "is_new",
+            "custom_only",
             "rating_avg",
             "stock",
             "main_image",

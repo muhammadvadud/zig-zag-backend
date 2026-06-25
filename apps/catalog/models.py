@@ -88,6 +88,7 @@ class Product(BaseModel):
     discount_percent = models.PositiveIntegerField(default=0)
     is_new = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    custom_only = models.BooleanField(default=False)  # faqat o'lchov bo'yicha tikiladi (standart o'lcham yo'q)
     stock = models.PositiveIntegerField(default=0)
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     views_count = models.PositiveIntegerField(default=0)

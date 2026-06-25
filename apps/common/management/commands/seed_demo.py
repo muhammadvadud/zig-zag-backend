@@ -253,6 +253,7 @@ class Command(BaseCommand):
                     "material": mat,
                     "base_price": Decimal(price),
                     "is_new": is_new,
+                    "custom_only": slug == "sheer-nur",  # demo: faqat o'lchov bo'yicha tikiladigan mahsulot
                     "stock": 50,
                     "tailor": tailors[pi % len(tailors)] if tailors else None,
                 },
