@@ -322,6 +322,8 @@ UNFOLD = {
                     _nav_item("Kolleksiyalar", "catalog_collection", "collections"),
                     _nav_item("Bannerlar", "catalog_banner", "ad"),
                     _nav_item("Hero matnlari", "catalog_herocontent", "wallpaper"),
+                    _nav_item("Ishlarimiz", "catalog_work", "photo_library"),
+                    _nav_item("Mijozlar fikri", "catalog_testimonial", "format_quote"),
                     _nav_item("FAQ", "catalog_faq", "quiz"),
                 ],
             },
