@@ -17,6 +17,8 @@ from .models import (
     Room,
     Style,
     Tailor,
+    Testimonial,
+    Work,
 )
 
 
@@ -132,3 +134,16 @@ class FAQAdmin(TranslationAdmin, ModelAdmin):
 class HeroContentAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("title_uz", "sort_order", "is_active")
     list_filter = ("is_active",)
+
+
+@admin.register(Testimonial)
+class TestimonialAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("name", "location_uz", "stars", "sort_order", "is_active")
+    list_filter = ("is_active", "stars")
+    search_fields = ("name", "location_uz", "location_ru")
+
+
+@admin.register(Work)
+class WorkAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("__str__", "room", "tag_uz", "is_tall", "sort_order", "is_active")
+    list_filter = ("is_active", "is_tall", "room")

@@ -16,6 +16,8 @@ from .models import (
     Room,
     Style,
     Tailor,
+    Testimonial,
+    Work,
 )
 
 
@@ -312,6 +314,34 @@ class HeroContentSerializer(serializers.ModelSerializer):
             "stat3_value",
             "stat3_label",
         )
+
+
+class TestimonialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Testimonial
+        fields = (
+            "id",
+            "name",
+            "location",
+            "text",
+            "date_label",
+            "stars",
+            "initials",
+            "color",
+        )
+
+
+class WorkSerializer(ImageUrlMixin, serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    room = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+    room_name = serializers.CharField(source="room.name", read_only=True, default="")
+
+    class Meta:
+        model = Work
+        fields = ("id", "image", "room", "room_name", "tag", "is_tall")
+
+    def get_image(self, obj):
+        return self.abs_url(obj.image)
 
 
 # ---------------------------------------------------------------------------

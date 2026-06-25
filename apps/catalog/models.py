@@ -234,3 +234,42 @@ class FAQ(BaseModel):
     class Meta:
         ordering = ["sort_order"]
         verbose_name = "FAQ"
+
+
+class Testimonial(BaseModel):
+    """Bosh sahifadagi mijozlar fikri (sharh kartalari)."""
+
+    name = models.CharField(max_length=120, default="")
+    location = models.CharField(max_length=120, blank=True, default="")
+    text = models.TextField(default="")
+    date_label = models.CharField(max_length=60, blank=True, default="")
+    stars = models.PositiveSmallIntegerField(default=5)
+    initials = models.CharField(max_length=4, blank=True, default="")
+    color = models.CharField(max_length=7, blank=True, default="#C9A769")
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "-created_at"]
+
+    def __str__(self):
+        return self.name or f"Testimonial #{self.pk}"
+
+
+class Work(BaseModel):
+    """Amalga oshirilgan loyihalar galereyasi (portfolio)."""
+
+    room = models.ForeignKey(
+        Room, on_delete=models.SET_NULL, null=True, blank=True, related_name="works"
+    )
+    tag = models.CharField(max_length=120, blank=True, default="")
+    image = models.ImageField(upload_to="works/")
+    is_tall = models.BooleanField(default=False)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "-created_at"]
+
+    def __str__(self):
+        return f"Work #{self.pk}"

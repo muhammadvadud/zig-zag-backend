@@ -26,6 +26,8 @@ from apps.catalog.models import (
     Room,
     Style,
     Tailor,
+    Testimonial,
+    Work,
 )
 from apps.orders.models import MeasurementRequest, Order, OrderItem
 from apps.payments.models import Payment
@@ -67,6 +69,8 @@ class Command(BaseCommand):
         self._hero()
         self._banners()
         self._collections()
+        self._testimonials()
+        self._works(rooms)
         self._reviews()
 
         self._ensure_product_assets(colors)
@@ -336,6 +340,99 @@ class Command(BaseCommand):
             collection.products.set(Product.objects.filter(slug__in=prod_slugs))
             if not collection.image:
                 collection.image.save(f"{slug}.jpg", ContentFile(_download(url)), save=True)
+
+    def _testimonials(self):
+        # name, loc_uz, loc_ru, stars, date_uz, date_ru, text_uz, text_ru, initials, color
+        data = [
+            ("Nodira Karimova", "Toshkent", "Ташкент", 5, "2 oy oldin", "2 месяца назад",
+             "Yashash xonasiga velvet parda oldim — hamma ko'rgan kishilar maqtaydi. "
+             "Rangi rasmda ko'rsatilgandek, hech qanday farqi yo'q. Yetkazib berish ham tez bo'ldi.",
+             "Купила велюровые шторы в гостиную — все, кто приходит, восхищаются. "
+             "Цвет точь-в-точь как на фото. Доставка быстрая, всё в порядке.",
+             "NK", "#C9A769"),
+            ("Sherzod Tursunov", "Farg'ona", "Фергана", 5, "3 oy oldin", "3 месяца назад",
+             "O'lchov uchun usta 24 soat ichida keldi, xuddi aytganlaridek. Pardalar aniq kesilgan, "
+             "osilgandan keyin juda chiroyli ko'rinadi. Narxi ham adolatli.",
+             "Мастер по замеру приехал ровно в течение 24 часов, как и обещали. Шторы скроены точно "
+             "по размеру, после установки смотрятся великолепно.",
+             "SH", "#6B8F71"),
+            ("Malika Yusupova", "Samarqand", "Самарканд", 5, "1 oy oldin", "1 месяц назад",
+             "Ikki yildan beri ishlataman — mato cho'zilmagan, rang o'chmagan. Quyosh ko'p tushishiga "
+             "qaramasdan sifatini saqlab qolgan. Navbatdagi xonaga ham shu yerdan olaman.",
+             "Использую уже два года — ткань не вытянулась, цвет не выгорел. Несмотря на то что солнце "
+             "бьёт сильно, качество держится. Следующую комнату тоже куплю здесь.",
+             "MY", "#8B6F3A"),
+            ("Dilshod Nazarov", "Toshkent, Yunusobod", "Ташкент, Юнусабад", 5, "3 hafta oldin", "3 недели назад",
+             "AI yordamchi orqali pardani tanladim — uning tavsiyasi to'g'ri chiqdi. Qo'ng'iroq qilmasdan "
+             "ham buyurtma bersa bo'ladi, lekin maslahat so'rasam hamma savolga javob berishdi.",
+             "Выбрал шторы через AI-помощника — его рекомендация оказалась точной. Можно заказать без "
+             "звонка, но когда спросил совет, на все вопросы ответили.",
+             "DN", "#4A6FA5"),
+            ("Zulfiya Rashidova", "Andijon", "Андижан", 5, "5 oy oldin", "5 месяцев назад",
+             "Bolalar xonasiga sheer parda olishni xohlardim, ammo qaysinisini tanlashni bilmadim. "
+             "Maslahat so'raganimda menga mos variantni aniqlab berishdi. Natija a'lo.",
+             "Хотела шторы шир для детской, но не знала, какие выбрать. Когда попросила совет, подобрали "
+             "подходящий вариант. Результат отличный.",
+             "ZR", "#B56576"),
+            ("Umida Xoliqova", "Namangan", "Наманган", 5, "6 oy oldin", "6 месяцев назад",
+             "Birinchi marta linen parda oluvdim, shubhalanadim. Lekin qo'limga olgach matoning sifatini "
+             "bildim. Endi butun uyimga shu yerdan olaman, uchinchi buyurtmam.",
+             "Первый раз брала льняные шторы, сомневалась. Но когда взяла в руки — сразу почувствовала "
+             "качество ткани. Теперь весь дом одеваю отсюда, это уже третий заказ.",
+             "UX", "#7A6FA5"),
+        ]
+        for i, (name, lu, lr, stars, du, dr, tu, tr, initials, color) in enumerate(data):
+            Testimonial.objects.update_or_create(
+                sort_order=i,
+                defaults={
+                    "name": name,
+                    "location_uz": lu, "location_ru": lr,
+                    "text_uz": tu, "text_ru": tr,
+                    "date_label_uz": du, "date_label_ru": dr,
+                    "stars": stars, "initials": initials, "color": color,
+                },
+            )
+
+    def _works(self, rooms):
+        # room_slug, tag_uz, tag_ru, is_tall, image_url
+        data = [
+            ("living", "Velvet · Navy", "Велюр · Тёмно-синий", True,
+             "https://images.unsplash.com/photo-1616627561950-9f746e330187?w=900&q=85"),
+            ("bedroom", "Linen · Krem", "Лён · Крем", False,
+             "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=900&q=85"),
+            ("kids", "Sheer · Pearl", "Шир · Жемчуг", False,
+             "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=85"),
+            ("bedroom", "Blackout · Camel", "Блэкаут · Кэмел", True,
+             "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=900&q=85"),
+            ("office", "Velvet · Forest", "Велюр · Лесной", False,
+             "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=900&q=85"),
+            ("living", "Linen · Stone", "Лён · Стоун", True,
+             "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=900&q=85"),
+            ("bedroom", "Silk · Gold", "Шёлк · Золото", False,
+             "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=900&q=85"),
+            ("office", "Blackout · Charcoal", "Блэкаут · Уголь", False,
+             "https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=900&q=85"),
+            ("kids", "Sheer · White", "Шир · Белый", True,
+             "https://images.unsplash.com/photo-1538688525198-9b88f6f53126?w=900&q=85"),
+            ("bedroom", "Sheer · Ivory", "Шир · Айвори", False,
+             "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=900&q=85"),
+            ("office", "Silk · Cobalt", "Шёлк · Кобальт", False,
+             "https://images.unsplash.com/photo-1513161455079-7dc1de15ef3e?w=900&q=85"),
+        ]
+        for i, (room_slug, tu, tr, is_tall, url) in enumerate(data):
+            work, _ = Work.objects.update_or_create(
+                sort_order=i,
+                defaults={
+                    "room": rooms.get(room_slug),
+                    "tag_uz": tu, "tag_ru": tr,
+                    "is_tall": is_tall,
+                },
+            )
+            if not work.image:
+                try:
+                    work.image.save(f"work-{i}.jpg", ContentFile(_download(url)), save=True)
+                except Exception:
+                    pass
 
     def _reviews(self):
         User = get_user_model()

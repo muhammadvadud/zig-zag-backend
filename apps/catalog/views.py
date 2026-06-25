@@ -22,6 +22,8 @@ from .models import (
     Room,
     Style,
     Tailor,
+    Testimonial,
+    Work,
 )
 from .serializers import (
     AdminBannerSerializer,
@@ -47,6 +49,8 @@ from .serializers import (
     ReviewSerializer,
     RoomSerializer,
     StyleSerializer,
+    TestimonialSerializer,
+    WorkSerializer,
 )
 
 
@@ -263,6 +267,23 @@ class HeroContentView(generics.GenericAPIView):
         if obj is None:
             return Response({})
         return Response(self.get_serializer(obj).data)
+
+
+class TestimonialList(generics.ListAPIView):
+    serializer_class = TestimonialSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+    queryset = Testimonial.objects.filter(is_active=True)
+
+
+class WorkList(generics.ListAPIView):
+    serializer_class = WorkSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+    # Rasmsiz ishlar ko'rsatilmaydi (frontend next/image bo'sh src ni qabul qilmaydi).
+    queryset = (
+        Work.objects.filter(is_active=True).exclude(image="").select_related("room")
+    )
 
 
 class FavoriteList(generics.ListCreateAPIView):

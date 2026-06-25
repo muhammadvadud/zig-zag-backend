@@ -38,6 +38,8 @@ from .views import (
     RoomList,
     StyleList,
     TailorList,
+    TestimonialList,
+    WorkList,
 )
 
 urlpatterns = [
@@ -53,6 +55,8 @@ urlpatterns = [
     path("collections/<slug:slug>/", CollectionDetail.as_view(), name="collection-detail"),
     path("banners/", BannerList.as_view(), name="banner-list"),
     path("hero/", HeroContentView.as_view(), name="hero-content"),
+    path("testimonials/", TestimonialList.as_view(), name="testimonial-list"),
+    path("works/", WorkList.as_view(), name="work-list"),
     path("faq/", FAQList.as_view(), name="faq-list"),
     path("favorites/", FavoriteList.as_view(), name="favorite-list"),
     path("favorites/<int:product_id>/", FavoriteDelete.as_view(), name="favorite-delete"),

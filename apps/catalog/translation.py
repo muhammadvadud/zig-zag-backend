@@ -1,6 +1,19 @@
 from modeltranslation.translator import TranslationOptions, register
 
-from .models import FAQ, Banner, Category, Collection, Color, HeroContent, Product, Room, Style, Tailor
+from .models import (
+    FAQ,
+    Banner,
+    Category,
+    Collection,
+    Color,
+    HeroContent,
+    Product,
+    Room,
+    Style,
+    Tailor,
+    Testimonial,
+    Work,
+)
 
 
 @register(Category)
@@ -62,3 +75,13 @@ class HeroContentTranslationOptions(TranslationOptions):
         "stat3_value",
         "stat3_label",
     )
+
+
+@register(Testimonial)
+class TestimonialTranslationOptions(TranslationOptions):
+    fields = ("location", "text", "date_label")
+
+
+@register(Work)
+class WorkTranslationOptions(TranslationOptions):
+    fields = ("tag",)
