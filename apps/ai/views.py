@@ -1,7 +1,11 @@
+import os
+import uuid
+
+from django.core.files.storage import default_storage
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,6 +25,7 @@ from .serializers import (
     AIMessageSerializer,
     ImageCreateSerializer,
     MessageCreateSerializer,
+    TryOnSerializer,
 )
 from .service import handle_user_message
 from .tasks import generate_ai_image
@@ -155,6 +160,34 @@ class AIImageDetail(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return AIImageGeneration.objects.filter(user=self.request.user)
+
+
+class AITryOnView(APIView):
+    """Foydalanuvchi xona rasmini yuboradi, pardali natija rasmini oladi.
+
+    AI_STUB_MODE yoqilgan (real provider/internet yo'q) — shuning uchun stub
+    yo'l yuklangan rasmni media/tryon/ ga saqlaydi va uning absolute URL'ini
+    "natija" sifatida qaytaradi. Frontend oqimi shu bilan to'liq ishlaydi.
+    """
+
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [AIImageThrottle]
+
+    def post(self, request):
+        serializer = TryOnSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        image = serializer.validated_data["image"]
+
+        # Yuklangan xona rasmini media/tryon/ ga saqlaymiz (placeholder natija).
+        _, ext = os.path.splitext(image.name)
+        ext = ext.lower() if ext else ".jpg"
+        name = default_storage.get_available_name(f"tryon/{uuid.uuid4().hex}{ext}")
+        saved_path = default_storage.save(name, image)
+        url = default_storage.url(saved_path)
+        absolute_url = request.build_absolute_uri(url)
+
+        return Response({"image": absolute_url}, status=status.HTTP_200_OK)
 
 
 class AdminAIUsageList(generics.ListAPIView):

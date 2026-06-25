@@ -69,3 +69,20 @@ class ImageCreateSerializer(serializers.Serializer):
         if value and not Product.objects.filter(pk=value, is_active=True).exists():
             raise serializers.ValidationError("Mahsulot topilmadi.")
         return value
+
+
+class TryOnSerializer(serializers.Serializer):
+    """Xonangiz rasmiga pardani "kiydirib" ko'rsatish (AI try-on)."""
+
+    image = serializers.ImageField(required=True)
+    product_id = serializers.IntegerField(required=False)
+
+    def validate_image(self, value):
+        if value.size > 8 * 1024 * 1024:
+            raise serializers.ValidationError("Rasm hajmi 8MB dan oshmasligi kerak.")
+        return value
+
+    def validate_product_id(self, value):
+        if value and not Product.objects.filter(pk=value, is_active=True).exists():
+            raise serializers.ValidationError("Mahsulot topilmadi.")
+        return value
