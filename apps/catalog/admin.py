@@ -2,6 +2,8 @@ from django.contrib import admin
 from modeltranslation.admin import TranslationAdmin
 from unfold.admin import ModelAdmin, TabularInline
 
+from .ratings import recompute_product_rating
+
 from .models import (
     FAQ,
     Banner,
@@ -93,14 +95,27 @@ class ProductImageAdmin(ModelAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(ModelAdmin):
-    list_display = ("product", "user", "rating", "is_published", "created_at")
-    list_filter = ("is_published", "rating")
+    list_display = (
+        "product",
+        "user",
+        "rating",
+        "rating_tailor",
+        "rating_service",
+        "is_published",
+        "created_at",
+    )
+    list_filter = ("is_published", "rating", "rating_tailor", "rating_service")
     search_fields = ("product__name_uz", "user__phone")
     actions = ["publish"]
 
     @admin.action(description="Tanlangan sharhlarni e'lon qilish")
     def publish(self, request, queryset):
+        # .update() signal'larni chetlab o'tadi, shuning uchun baholarni qo'lda
+        # qayta hisoblaymiz (mahsulot + bog'liq chevar).
+        products = {r.product for r in queryset.select_related("product__tailor")}
         queryset.update(is_published=True)
+        for product in products:
+            recompute_product_rating(product)
 
 
 @admin.register(Favorite)

@@ -1,7 +1,10 @@
+from django.db.models import Prefetch
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.catalog.models import Review
 
 from apps.accounts.models import Address
 from apps.cart.services import get_or_create_cart
@@ -29,10 +32,16 @@ class OrdersView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = Order.objects.prefetch_related(
-            "items__variant__product__images", "items__variant__color", "items__service_tariff"
-        )
         user = self.request.user
+        qs = Order.objects.prefetch_related(
+            "items__variant__product__images",
+            "items__variant__color",
+            "items__service_tariff",
+            Prefetch(
+                "items__variant__product__reviews",
+                queryset=Review.objects.filter(user=user),
+            ),
+        )
         if user.role in ("manager", "admin"):
             return qs
         return qs.filter(user=user)
@@ -73,10 +82,16 @@ class OrderDetail(generics.RetrieveAPIView):
     lookup_field = "order_number"
 
     def get_queryset(self):
-        qs = Order.objects.prefetch_related(
-            "items__variant__product__images", "items__variant__color", "items__service_tariff"
-        )
         user = self.request.user
+        qs = Order.objects.prefetch_related(
+            "items__variant__product__images",
+            "items__variant__color",
+            "items__service_tariff",
+            Prefetch(
+                "items__variant__product__reviews",
+                queryset=Review.objects.filter(user=user),
+            ),
+        )
         if user.role in ("manager", "admin"):
             return qs
         return qs.filter(user=user)

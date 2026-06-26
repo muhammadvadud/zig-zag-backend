@@ -154,7 +154,10 @@ class Review(BaseModel):
     order = models.ForeignKey(
         "orders.Order", on_delete=models.SET_NULL, null=True, blank=True, related_name="reviews"
     )
-    rating = models.PositiveSmallIntegerField()
+    # Uchta alohida baho: mahsulot, chevar (usta), xizmat uchun (har biri 1-5).
+    rating = models.PositiveSmallIntegerField()  # mahsulot bahosi
+    rating_tailor = models.PositiveSmallIntegerField(default=0)  # chevar bahosi
+    rating_service = models.PositiveSmallIntegerField(default=0)  # xizmat bahosi
     comment = models.TextField(blank=True)
     is_published = models.BooleanField(default=False)
 

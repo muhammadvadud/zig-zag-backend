@@ -1,6 +1,6 @@
-from django.db.models import Count, F, Max, Min, Prefetch, Q
+from django.db.models import Case, Count, F, IntegerField, Max, Min, Prefetch, Q, When
 from rest_framework import generics, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
@@ -163,6 +163,17 @@ class ProductFacets(generics.GenericAPIView):
         })
 
 
+def user_completed_order_for(user, product):
+    """Foydalanuvchining shu mahsulot bo'yicha yetkazilgan (completed) buyurtmasi."""
+    return (
+        OrderItem.objects.filter(
+            order__user=user, variant__product=product, order__status="completed"
+        )
+        .select_related("order")
+        .first()
+    )
+
+
 class ProductReviewList(generics.ListCreateAPIView):
     serializer_class = ReviewSerializer
 
@@ -175,24 +186,76 @@ class ProductReviewList(generics.ListCreateAPIView):
         return generics.get_object_or_404(Product, slug=self.kwargs["slug"])
 
     def get_queryset(self):
-        return Review.objects.filter(
-            product__slug=self.kwargs["slug"], is_published=True
-        ).select_related("user")
+        # E'lon qilingan sharhlar hammaga; o'z sharhi (e'lon qilinmagan bo'lsa ham)
+        # faqat egasiga ko'rinadi va ro'yxatda birinchi turadi.
+        qs = Review.objects.filter(product__slug=self.kwargs["slug"]).select_related("user")
+        user = self.request.user
+        if user.is_authenticated:
+            qs = qs.filter(Q(is_published=True) | Q(user=user))
+            return qs.order_by(
+                Case(When(user=user, then=0), default=1, output_field=IntegerField()),
+                "-created_at",
+            )
+        return qs.filter(is_published=True)
 
     def perform_create(self, serializer):
         product = self.get_product()
         user = self.request.user
-        # Only buyers may review the product they purchased.
-        order_item = (
-            OrderItem.objects.filter(order__user=user, variant__product=product)
-            .select_related("order")
-            .first()
-        )
-        if not order_item:
-            raise ValidationError("Sharh faqat mahsulotni sotib olganlar uchun.")
+        # Sharhni faqat mahsuloti yetkazilgan (buyurtmasi "completed") xaridor qoldiradi.
+        completed_item = user_completed_order_for(user, product)
+        if not completed_item:
+            raise ValidationError(
+                "Sharhni faqat buyurtmangiz yetkazilgandan (yakunlangandan) keyin qoldira olasiz."
+            )
         if Review.objects.filter(product=product, user=user).exists():
             raise ValidationError("Siz bu mahsulotga allaqachon sharh qoldirgansiz.")
-        serializer.save(user=user, product=product, order=order_item.order, is_published=False)
+        serializer.save(user=user, product=product, order=completed_item.order, is_published=False)
+
+
+class ReviewEligibility(generics.GenericAPIView):
+    """Sharh yozish sahifasi uchun: foydalanuvchi shu mahsulotga sharh qoldira
+    oladimi (yetkazilgan buyurtma bormi) va mavjud sharhi bo'lsa qaytaradi."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReviewSerializer
+
+    def get(self, request, slug):
+        product = generics.get_object_or_404(Product, slug=slug)
+        review = (
+            Review.objects.filter(product=product, user=request.user)
+            .select_related("user")
+            .first()
+        )
+        can_review = review is not None or bool(
+            user_completed_order_for(request.user, product)
+        )
+        data = {
+            "can_review": can_review,
+            "has_review": review is not None,
+            "review": ReviewSerializer(review, context={"request": request}).data
+            if review
+            else None,
+        }
+        return Response(data)
+
+
+class MyProductReview(generics.RetrieveUpdateAPIView):
+    """Foydalanuvchining mahsulotga qoldirgan o'z sharhini olish/yangilash."""
+
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        review = Review.objects.filter(
+            product__slug=self.kwargs["slug"], user=self.request.user
+        ).select_related("user").first()
+        if not review:
+            raise NotFound("Sharh topilmadi.")
+        return review
+
+    def perform_update(self, serializer):
+        # Tahrirdan keyin qayta moderatsiyaga tushadi.
+        serializer.save(is_published=False)
 
 
 def _collection_queryset():

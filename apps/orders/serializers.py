@@ -13,6 +13,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     color = serializers.CharField(source="variant.color.name", read_only=True)
     color_hex = serializers.CharField(source="variant.color.hex", read_only=True)
     image = serializers.SerializerMethodField()
+    review = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -31,6 +32,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "height_cm",
             "service_tariff",
             "line_total",
+            "review",
         )
 
     def get_image(self, obj):
@@ -42,6 +44,31 @@ class OrderItemSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         url = main.image.url
         return request.build_absolute_uri(url) if request else url
+
+    def get_review(self, obj):
+        """Foydalanuvchining shu mahsulotga qoldirgan sharhi (bo'lsa) — buyurtmalar
+        ro'yxatida 'Sharh qoldirish' yoki 'Sharhni o'zgartirish'ni ko'rsatish uchun."""
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+        review = next(
+            (
+                r
+                for r in obj.variant.product.reviews.all()
+                if r.user_id == request.user.id
+            ),
+            None,
+        )
+        if not review:
+            return None
+        return {
+            "id": review.id,
+            "rating": review.rating,
+            "rating_tailor": review.rating_tailor,
+            "rating_service": review.rating_service,
+            "comment": review.comment,
+            "is_published": review.is_published,
+        }
 
 
 class OrderSerializer(serializers.ModelSerializer):

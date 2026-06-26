@@ -169,16 +169,30 @@ class ProductDetailSerializer(ProductListSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.full_name", read_only=True)
+    # Uchta baho ham majburiy (1-5).
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    rating_tailor = serializers.IntegerField(min_value=1, max_value=5)
+    rating_service = serializers.IntegerField(min_value=1, max_value=5)
+    is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
-        fields = ("id", "rating", "comment", "user_name", "created_at")
-        read_only_fields = ("id", "user_name", "created_at")
+        fields = (
+            "id",
+            "rating",
+            "rating_tailor",
+            "rating_service",
+            "comment",
+            "user_name",
+            "is_published",
+            "is_mine",
+            "created_at",
+        )
+        read_only_fields = ("id", "user_name", "is_published", "is_mine", "created_at")
 
-    def validate_rating(self, value):
-        if not 1 <= value <= 5:
-            raise serializers.ValidationError("Baho 1 dan 5 gacha bo'lishi kerak.")
-        return value
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.user_id == request.user.id)
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
@@ -278,6 +292,8 @@ class AdminReviewSerializer(serializers.ModelSerializer):
             "product_slug",
             "user_name",
             "rating",
+            "rating_tailor",
+            "rating_service",
             "comment",
             "is_published",
             "created_at",
@@ -288,6 +304,8 @@ class AdminReviewSerializer(serializers.ModelSerializer):
             "product_slug",
             "user_name",
             "rating",
+            "rating_tailor",
+            "rating_service",
             "comment",
             "created_at",
         )

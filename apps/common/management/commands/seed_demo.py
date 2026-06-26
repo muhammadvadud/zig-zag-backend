@@ -469,7 +469,13 @@ class Command(BaseCommand):
                 Review.objects.update_or_create(
                     product=product,
                     user=user,
-                    defaults={"rating": rating, "comment": text, "is_published": True},
+                    defaults={
+                        "rating": rating,
+                        "rating_tailor": rating,
+                        "rating_service": min(5, rating + 1) if rating < 5 else 5,
+                        "comment": text,
+                        "is_published": True,
+                    },
                 )
             agg = product.reviews.filter(is_published=True).aggregate(a=Avg("rating"))["a"] or 0
             product.rating_avg = round(Decimal(agg), 2)
@@ -658,6 +664,8 @@ class Command(BaseCommand):
                     user=user,
                     defaults={
                         "rating": random.randint(3, 5),
+                        "rating_tailor": random.randint(3, 5),
+                        "rating_service": random.randint(3, 5),
                         "comment": random.choice(comments),
                         "is_published": random.random() < 0.4,
                     },
