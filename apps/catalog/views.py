@@ -11,6 +11,7 @@ from apps.orders.models import OrderItem
 from .filters import ProductFilter
 from .models import (
     FAQ,
+    Badge,
     Banner,
     Category,
     Collection,
@@ -26,6 +27,7 @@ from .models import (
     Work,
 )
 from .serializers import (
+    AdminBadgeSerializer,
     AdminBannerSerializer,
     AdminCategorySerializer,
     AdminCollectionSerializer,
@@ -70,7 +72,7 @@ def _product_queryset():
     return (
         Product.objects.filter(is_active=True)
         .select_related("category", "tailor")
-        .prefetch_related("images", "variants__color", "styles", "rooms")
+        .prefetch_related("images", "variants__color", "styles", "rooms", "badges")
         .annotate(
             reviews_count=Count(
                 "reviews", filter=Q(reviews__is_published=True), distinct=True
@@ -391,7 +393,7 @@ class FavoriteDelete(generics.DestroyAPIView):
 class AdminProductList(generics.ListCreateAPIView):
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffRole]
-    queryset = Product.objects.all()
+    queryset = Product.objects.prefetch_related("badges").all()
     filterset_fields = ["category", "is_active", "is_new"]
     search_fields = ["slug", "name_uz", "name_ru"]
 
@@ -399,7 +401,7 @@ class AdminProductList(generics.ListCreateAPIView):
 class AdminProductDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffRole]
-    queryset = Product.objects.all()
+    queryset = Product.objects.prefetch_related("badges").all()
     lookup_field = "slug"
 
 
@@ -487,6 +489,19 @@ class AdminColorDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminColorSerializer
     permission_classes = [IsAdminRole]
     queryset = Color.objects.all()
+
+
+class AdminBadgeList(generics.ListCreateAPIView):
+    serializer_class = AdminBadgeSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Badge.objects.all()
+
+
+class AdminBadgeDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminBadgeSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Badge.objects.all()
 
 
 class AdminCollectionList(generics.ListCreateAPIView):

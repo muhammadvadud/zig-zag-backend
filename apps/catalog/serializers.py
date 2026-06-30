@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from .models import (
     FAQ,
+    Badge,
     Banner,
     Category,
     Collection,
@@ -57,6 +58,14 @@ class ColorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Color
         fields = ("id", "name", "hex")
+
+
+class BadgeSerializer(serializers.ModelSerializer):
+    """Public nishon — front-da mahsulot ustida ko'rsatiladi."""
+
+    class Meta:
+        model = Badge
+        fields = ("id", "name", "color")
 
 
 class StyleSerializer(ImageUrlMixin, serializers.ModelSerializer):
@@ -115,6 +124,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
     colors_count = serializers.SerializerMethodField()
     styles = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
     rooms = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
+    badges = BadgeSerializer(many=True, read_only=True)
     reviews_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -137,6 +147,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "material",
             "styles",
             "rooms",
+            "badges",
             "reviews_count",
         )
 
@@ -230,8 +241,14 @@ class AdminProductSerializer(serializers.ModelSerializer):
     """Full read/write product representation for staff management.
 
     Exposes the per-language fields explicitly so staff can edit each
-    translation directly.
+    translation directly. Nishonlar (badges) ko'p-ko'pga bog'lanish:
+    yozishda ID ro'yxati, o'qishda ``badges_detail`` to'liq obyekt.
     """
+
+    badges = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Badge.objects.all(), required=False
+    )
+    badges_detail = BadgeSerializer(many=True, read_only=True, source="badges")
 
     class Meta:
         model = Product
@@ -247,10 +264,11 @@ class AdminProductSerializer(serializers.ModelSerializer):
             "base_price",
             "price_per_m2",
             "discount_percent",
-            "is_new",
             "is_active",
             "stock",
             "tailor",
+            "badges",
+            "badges_detail",
         )
 
 
@@ -476,6 +494,12 @@ class AdminColorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Color
         fields = ("id", "name", "hex")
+
+
+class AdminBadgeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Badge
+        fields = ("id", "name_uz", "name_ru", "color", "sort_order", "is_active")
 
 
 class AdminCollectionSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):

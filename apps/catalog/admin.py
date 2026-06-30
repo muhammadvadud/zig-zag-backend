@@ -6,6 +6,7 @@ from .ratings import recompute_product_rating
 
 from .models import (
     FAQ,
+    Badge,
     Banner,
     Category,
     Collection,
@@ -70,12 +71,20 @@ class TailorAdmin(TranslationAdmin, ModelAdmin):
     search_fields = ("name_uz", "name_ru", "specialty_uz")
 
 
+@admin.register(Badge)
+class BadgeAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("name_uz", "color", "sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name_uz", "name_ru")
+
+
 @admin.register(Product)
 class ProductAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("slug", "name_uz", "category", "tailor", "base_price", "discount_percent", "stock", "is_new", "custom_only", "is_active")
     list_filter = ("category", "tailor", "is_new", "custom_only", "is_active")
     search_fields = ("slug", "name_uz", "name_ru")
     autocomplete_fields = ("tailor",)
+    filter_horizontal = ("badges",)
     prepopulated_fields = {"slug": ("name_uz",)}
     inlines = [ProductVariantInline, ProductImageInline]
 

@@ -77,6 +77,24 @@ class Tailor(BaseModel):
         return self.name
 
 
+class Badge(BaseModel):
+    """Mahsulotga biriktiriladigan nishon (masalan: Yangi, Chegirma, Top).
+
+    Bir mahsulotga bir nechta nishon biriktirilishi mumkin. Har bir nishon
+    o'z rangiga ega."""
+
+    name = models.CharField(max_length=64, default="")
+    color = models.CharField(max_length=7, default="#c9a769")  # HEX rang
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.name
+
+
 class Product(BaseModel):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     slug = models.SlugField(unique=True)
@@ -94,6 +112,7 @@ class Product(BaseModel):
     views_count = models.PositiveIntegerField(default=0)
     styles = models.ManyToManyField("Style", blank=True, related_name="products")
     rooms = models.ManyToManyField("Room", blank=True, related_name="products")
+    badges = models.ManyToManyField("Badge", blank=True, related_name="products")
     tailor = models.ForeignKey(
         "Tailor", on_delete=models.SET_NULL, null=True, blank=True, related_name="products"
     )

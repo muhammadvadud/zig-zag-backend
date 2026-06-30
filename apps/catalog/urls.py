@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    AdminBadgeDetail,
+    AdminBadgeList,
     AdminBannerDetail,
     AdminBannerList,
     AdminCategoryDetail,
@@ -79,6 +81,8 @@ urlpatterns = [
     path("admin/rooms/<int:pk>/", AdminRoomDetail.as_view(), name="admin-room-detail"),
     path("admin/colors/", AdminColorList.as_view(), name="admin-color-list"),
     path("admin/colors/<int:pk>/", AdminColorDetail.as_view(), name="admin-color-detail"),
+    path("admin/badges/", AdminBadgeList.as_view(), name="admin-badge-list"),
+    path("admin/badges/<int:pk>/", AdminBadgeDetail.as_view(), name="admin-badge-detail"),
     path("admin/collections/", AdminCollectionList.as_view(), name="admin-collection-list"),
     path("admin/collections/<int:pk>/", AdminCollectionDetail.as_view(), name="admin-collection-detail"),
     path("admin/banners/", AdminBannerList.as_view(), name="admin-banner-list"),

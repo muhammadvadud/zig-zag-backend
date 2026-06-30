@@ -2,6 +2,7 @@ from modeltranslation.translator import TranslationOptions, register
 
 from .models import (
     FAQ,
+    Badge,
     Banner,
     Category,
     Collection,
@@ -14,6 +15,11 @@ from .models import (
     Testimonial,
     Work,
 )
+
+
+@register(Badge)
+class BadgeTranslationOptions(TranslationOptions):
+    fields = ("name",)
 
 
 @register(Category)
