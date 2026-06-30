@@ -90,19 +90,26 @@ class ProductImageSerializer(ImageUrlMixin, serializers.ModelSerializer):
 
     class Meta:
         model = ProductImage
-        fields = ("id", "image", "is_main", "sort_order", "variant")
+        fields = ("id", "image", "is_main", "sort_order", "color")
 
     def get_image(self, obj):
         return self.abs_url(obj.image)
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
-    color = ColorSerializer(read_only=True)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    label = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductVariant
-        fields = ("id", "sku", "color", "stock", "extra_price", "unit_price")
+        fields = ("id", "name", "width_cm", "height_cm", "extra_price", "unit_price", "is_active", "label")
+
+    def get_label(self, obj):
+        if obj.name:
+            return obj.name
+        if obj.width_cm and obj.height_cm:
+            return f"{obj.width_cm}×{obj.height_cm} sm"
+        return ""
 
 
 class TailorSerializer(ImageUrlMixin, serializers.ModelSerializer):
@@ -120,8 +127,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
     category = serializers.SlugRelatedField(slug_field="slug", read_only=True)
     final_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     main_image = serializers.SerializerMethodField()
-    colors = serializers.SerializerMethodField()
-    colors_count = serializers.SerializerMethodField()
+    sizes_count = serializers.SerializerMethodField()
     styles = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
     rooms = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
     badges = BadgeSerializer(many=True, read_only=True)
@@ -142,8 +148,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "rating_avg",
             "stock",
             "main_image",
-            "colors",
-            "colors_count",
+            "sizes_count",
             "material",
             "styles",
             "rooms",
@@ -155,16 +160,14 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
         main = next((i for i in obj.images.all() if i.is_main), None) or next(iter(obj.images.all()), None)
         return self.abs_url(main.image) if main else None
 
-    def get_colors(self, obj):
-        return [{"name": v.color.name, "hex": v.color.hex} for v in obj.variants.all()]
-
-    def get_colors_count(self, obj):
-        return obj.variants.count()
+    def get_sizes_count(self, obj):
+        return obj.variants.filter(is_active=True).count()
 
 
 class ProductDetailSerializer(ProductListSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
+    colors = ColorSerializer(many=True, read_only=True)
     tailor = TailorSerializer(read_only=True)
 
     class Meta(ProductListSerializer.Meta):
@@ -174,6 +177,7 @@ class ProductDetailSerializer(ProductListSerializer):
             "views_count",
             "images",
             "variants",
+            "colors",
             "tailor",
         )
 
@@ -235,41 +239,6 @@ class BannerSerializer(ImageUrlMixin, serializers.ModelSerializer):
 
     def get_image(self, obj):
         return self.abs_url(obj.image)
-
-
-class AdminProductSerializer(serializers.ModelSerializer):
-    """Full read/write product representation for staff management.
-
-    Exposes the per-language fields explicitly so staff can edit each
-    translation directly. Nishonlar (badges) ko'p-ko'pga bog'lanish:
-    yozishda ID ro'yxati, o'qishda ``badges_detail`` to'liq obyekt.
-    """
-
-    badges = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Badge.objects.all(), required=False
-    )
-    badges_detail = BadgeSerializer(many=True, read_only=True, source="badges")
-
-    class Meta:
-        model = Product
-        fields = (
-            "id",
-            "category",
-            "slug",
-            "name_uz",
-            "name_ru",
-            "description_uz",
-            "description_ru",
-            "material",
-            "base_price",
-            "price_per_m2",
-            "discount_percent",
-            "is_active",
-            "stock",
-            "tailor",
-            "badges",
-            "badges_detail",
-        )
 
 
 class AdminTailorSerializer(ImageUrlMixin, serializers.ModelSerializer):
@@ -421,6 +390,86 @@ class SlugAutoMixin:
         return super().update(instance, validated_data)
 
 
+class AdminColorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Color
+        fields = ("id", "name", "hex")
+
+
+class AdminProductVariantSerializer(serializers.ModelSerializer):
+    """Tayyor o'lchamli variant (admin yozish/o'qish)."""
+    unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = ProductVariant
+        fields = ("id", "name", "width_cm", "height_cm", "extra_price", "unit_price", "is_active")
+
+
+class AdminProductImageSerializer(ImageUrlMixin, serializers.ModelSerializer):
+    """Mahsulot rasmi (admin yozish/o'qish)."""
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductImage
+        fields = ("id", "image_url", "image", "is_main", "sort_order", "color")
+        extra_kwargs = {"image": {"write_only": True, "required": True}}
+
+    def get_image_url(self, obj):
+        return self.abs_url(obj.image)
+
+
+class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
+    """Full read/write product representation for staff management.
+
+    Slug bo'sh qoldirilsa name_uz dan avtomatik yaratiladi.
+    """
+
+    slug_source = "name_uz"
+
+    badges = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Badge.objects.all(), required=False
+    )
+    badges_detail = BadgeSerializer(many=True, read_only=True, source="badges")
+    styles = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Style.objects.all(), required=False
+    )
+    rooms = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Room.objects.all(), required=False
+    )
+    colors = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Color.objects.all(), required=False
+    )
+    colors_detail = AdminColorSerializer(many=True, read_only=True, source="colors")
+
+    class Meta:
+        model = Product
+        fields = (
+            "id",
+            "category",
+            "slug",
+            "name_uz",
+            "name_ru",
+            "description_uz",
+            "description_ru",
+            "material",
+            "base_price",
+            "price_per_m2",
+            "discount_percent",
+            "is_active",
+            "stock",
+            "tailor",
+            "badges",
+            "badges_detail",
+            "styles",
+            "rooms",
+            "colors",
+            "colors_detail",
+        )
+        extra_kwargs = {
+            "slug": {"required": False, "allow_blank": True},
+        }
+
+
 class AdminCategorySerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
     slug_source = "name"
 
@@ -488,12 +537,6 @@ class AdminRoomSerializer(SlugAutoMixin, serializers.ModelSerializer):
         extra_kwargs = {
             "slug": {"required": False, "allow_blank": True},
         }
-
-
-class AdminColorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Color
-        fields = ("id", "name", "hex")
 
 
 class AdminBadgeSerializer(serializers.ModelSerializer):

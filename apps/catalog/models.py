@@ -112,6 +112,7 @@ class Product(BaseModel):
     views_count = models.PositiveIntegerField(default=0)
     styles = models.ManyToManyField("Style", blank=True, related_name="products")
     rooms = models.ManyToManyField("Room", blank=True, related_name="products")
+    colors = models.ManyToManyField("Color", blank=True, related_name="products")
     badges = models.ManyToManyField("Badge", blank=True, related_name="products")
     tailor = models.ForeignKey(
         "Tailor", on_delete=models.SET_NULL, null=True, blank=True, related_name="products"
@@ -136,18 +137,24 @@ class Product(BaseModel):
 
 
 class ProductVariant(BaseModel):
+    """Tayyor o'lchamli variant: mahsulotning belgilangan eni × bo'yi (sm)."""
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
-    color = models.ForeignKey(Color, on_delete=models.PROTECT, related_name="variants")
-    sku = models.CharField(max_length=64, unique=True)
-    stock = models.PositiveIntegerField(default=0)
+    name = models.CharField(max_length=120, blank=True, default="")  # masalan "150×250 sm"
+    width_cm = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
     extra_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["id"]
-        unique_together = ("product", "color")
+        ordering = ["width_cm", "height_cm", "id"]
 
     def __str__(self):
-        return self.sku
+        if self.name:
+            return self.name
+        if self.width_cm and self.height_cm:
+            return f"{self.width_cm}×{self.height_cm} sm"
+        return f"Variant #{self.pk}"
 
     @property
     def unit_price(self):
@@ -156,8 +163,8 @@ class ProductVariant(BaseModel):
 
 class ProductImage(BaseModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    variant = models.ForeignKey(
-        ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name="images"
+    color = models.ForeignKey(
+        "Color", on_delete=models.SET_NULL, null=True, blank=True, related_name="images"
     )
     image = models.ImageField(upload_to="products/")
     is_main = models.BooleanField(default=False)

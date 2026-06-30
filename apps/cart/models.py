@@ -31,6 +31,9 @@ class Cart(BaseModel):
 class CartItem(BaseModel):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
     variant = models.ForeignKey("catalog.ProductVariant", on_delete=models.CASCADE)
+    color = models.ForeignKey(
+        "catalog.Color", on_delete=models.SET_NULL, null=True, blank=True
+    )
     quantity = models.PositiveIntegerField(default=1)
     width_cm = models.PositiveIntegerField(null=True, blank=True)
     height_cm = models.PositiveIntegerField(null=True, blank=True)

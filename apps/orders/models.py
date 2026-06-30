@@ -47,6 +47,9 @@ class Order(BaseModel):
 class OrderItem(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     variant = models.ForeignKey("catalog.ProductVariant", on_delete=models.PROTECT)
+    color = models.ForeignKey(
+        "catalog.Color", on_delete=models.SET_NULL, null=True, blank=True
+    )
     product_name_snapshot = models.CharField(max_length=200)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)

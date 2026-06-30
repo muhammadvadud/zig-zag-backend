@@ -10,8 +10,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(source="variant.product.id", read_only=True)
     product_slug = serializers.CharField(source="variant.product.slug", read_only=True)
     variant_id = serializers.IntegerField(source="variant.id", read_only=True)
-    color = serializers.CharField(source="variant.color.name", read_only=True)
-    color_hex = serializers.CharField(source="variant.color.hex", read_only=True)
+    color = serializers.CharField(source="color.name", read_only=True, default=None)
+    color_hex = serializers.CharField(source="color.hex", read_only=True, default=None)
     image = serializers.SerializerMethodField()
     review = serializers.SerializerMethodField()
 

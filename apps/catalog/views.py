@@ -19,6 +19,8 @@ from .models import (
     Favorite,
     HeroContent,
     Product,
+    ProductImage,
+    ProductVariant,
     Review,
     Room,
     Style,
@@ -34,7 +36,9 @@ from .serializers import (
     AdminColorSerializer,
     AdminFAQSerializer,
     AdminHeroContentSerializer,
+    AdminProductImageSerializer,
     AdminProductSerializer,
+    AdminProductVariantSerializer,
     AdminReviewSerializer,
     AdminRoomSerializer,
     AdminStyleSerializer,
@@ -72,7 +76,7 @@ def _product_queryset():
     return (
         Product.objects.filter(is_active=True)
         .select_related("category", "tailor")
-        .prefetch_related("images", "variants__color", "styles", "rooms", "badges")
+        .prefetch_related("images", "variants", "styles", "rooms", "colors", "badges")
         .annotate(
             reviews_count=Count(
                 "reviews", filter=Q(reviews__is_published=True), distinct=True
@@ -150,9 +154,9 @@ class ProductFacets(generics.GenericAPIView):
             .values("slug", "count").order_by("sort_order")
         )
         colors = list(
-            Color.objects.filter(variants__product__in=ids)
-            .annotate(count=Count("variants__product", filter=Q(variants__product__in=ids), distinct=True))
-            .values("name", "hex", "count").order_by("-count")
+            Color.objects.filter(products__in=ids)
+            .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
+            .values("id", "name", "hex", "count").order_by("name")
         )
         price = qs.aggregate(min=Min("base_price"), max=Max("base_price"))
         return Response({
@@ -554,3 +558,53 @@ class AdminHeroDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminHeroContentSerializer
     permission_classes = [IsAdminRole]
     queryset = HeroContent.objects.all()
+
+
+# ---------------------------------------------------------------------------
+# Admin CRUD: Product Variants & Images (nested under /admin/products/<slug>/)
+# ---------------------------------------------------------------------------
+
+class AdminProductVariantList(generics.ListCreateAPIView):
+    serializer_class = AdminProductVariantSerializer
+    permission_classes = [IsStaffRole]
+    pagination_class = None
+
+    def _product(self):
+        return generics.get_object_or_404(Product, slug=self.kwargs["slug"])
+
+    def get_queryset(self):
+        return ProductVariant.objects.filter(product__slug=self.kwargs["slug"])
+
+    def perform_create(self, serializer):
+        serializer.save(product=self._product())
+
+
+class AdminProductVariantDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminProductVariantSerializer
+    permission_classes = [IsStaffRole]
+
+    def get_queryset(self):
+        return ProductVariant.objects.filter(product__slug=self.kwargs["slug"])
+
+
+class AdminProductImageList(generics.ListCreateAPIView):
+    serializer_class = AdminProductImageSerializer
+    permission_classes = [IsStaffRole]
+    pagination_class = None
+
+    def _product(self):
+        return generics.get_object_or_404(Product, slug=self.kwargs["slug"])
+
+    def get_queryset(self):
+        return ProductImage.objects.filter(product__slug=self.kwargs["slug"])
+
+    def perform_create(self, serializer):
+        serializer.save(product=self._product())
+
+
+class AdminProductImageDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminProductImageSerializer
+    permission_classes = [IsStaffRole]
+
+    def get_queryset(self):
+        return ProductImage.objects.filter(product__slug=self.kwargs["slug"])

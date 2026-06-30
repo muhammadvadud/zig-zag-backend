@@ -84,21 +84,21 @@ class ProductAdmin(TranslationAdmin, ModelAdmin):
     list_filter = ("category", "tailor", "is_new", "custom_only", "is_active")
     search_fields = ("slug", "name_uz", "name_ru")
     autocomplete_fields = ("tailor",)
-    filter_horizontal = ("badges",)
+    filter_horizontal = ("badges", "styles", "rooms", "colors")
     prepopulated_fields = {"slug": ("name_uz",)}
     inlines = [ProductVariantInline, ProductImageInline]
 
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(ModelAdmin):
-    list_display = ("sku", "product", "color", "stock", "extra_price")
-    search_fields = ("sku", "product__name_uz")
-    list_filter = ("color",)
+    list_display = ("__str__", "product", "width_cm", "height_cm", "extra_price", "is_active")
+    search_fields = ("name", "product__name_uz")
+    list_filter = ("is_active",)
 
 
 @admin.register(ProductImage)
 class ProductImageAdmin(ModelAdmin):
-    list_display = ("product", "variant", "is_main", "sort_order")
+    list_display = ("product", "color", "is_main", "sort_order")
     list_filter = ("is_main",)
 
 

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.catalog.models import ProductVariant
+from apps.catalog.models import Color, ProductVariant
 from apps.services.models import ServiceTariff
 
 from .models import Cart, CartItem
@@ -8,7 +8,8 @@ from .models import Cart, CartItem
 
 class CartItemSerializer(serializers.ModelSerializer):
     product_name = serializers.SerializerMethodField()
-    color = serializers.SerializerMethodField()
+    color = serializers.CharField(source="color.name", read_only=True, default=None)
+    color_hex = serializers.CharField(source="color.hex", read_only=True, default=None)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     line_total = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     service_tariff = serializers.SlugRelatedField(slug_field="code", read_only=True)
@@ -20,6 +21,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             "variant",
             "product_name",
             "color",
+            "color_hex",
             "unit_price",
             "quantity",
             "width_cm",
@@ -30,9 +32,6 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     def get_product_name(self, obj):
         return obj.variant.product.name
-
-    def get_color(self, obj):
-        return obj.variant.color.name
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -51,6 +50,7 @@ class CartSerializer(serializers.ModelSerializer):
 
 class CartItemWriteSerializer(serializers.Serializer):
     variant_id = serializers.IntegerField()
+    color_id = serializers.IntegerField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1, max_value=50, default=1)
     width_cm = serializers.IntegerField(min_value=10, max_value=1000, required=False, allow_null=True)
     height_cm = serializers.IntegerField(min_value=10, max_value=1000, required=False, allow_null=True)
@@ -59,6 +59,11 @@ class CartItemWriteSerializer(serializers.Serializer):
     def validate_variant_id(self, value):
         if not ProductVariant.objects.filter(pk=value).exists():
             raise serializers.ValidationError("Variant topilmadi.")
+        return value
+
+    def validate_color_id(self, value):
+        if value and not Color.objects.filter(pk=value).exists():
+            raise serializers.ValidationError("Rang topilmadi.")
         return value
 
     def validate_service_tariff(self, value):

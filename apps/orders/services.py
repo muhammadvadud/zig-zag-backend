@@ -2,7 +2,7 @@ from datetime import datetime
 
 from django.db import transaction
 
-from apps.catalog.models import ProductVariant
+from apps.catalog.models import Product, ProductVariant
 from apps.common.exceptions import BusinessError, Conflict
 
 from .models import Order, OrderItem
@@ -48,7 +48,7 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
     Stock is locked with select_for_update to avoid overselling on races.
     """
 
-    items = list(cart.items.select_related("variant__product", "service_tariff").all())
+    items = list(cart.items.select_related("variant__product", "color", "service_tariff").all())
     if not items:
         raise BusinessError("Savat bo'sh.")
 
@@ -62,9 +62,11 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
 
     subtotal = 0
     for item in items:
-        variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
-        if variant.stock < item.quantity:
-            raise Conflict(f"Stok yetarli emas: {variant.sku}")
+        variant = ProductVariant.objects.select_related("product").get(pk=item.variant_id)
+        # Stok endi mahsulot darajasida (variant — tayyor o'lcham, alohida stogi yo'q).
+        product = Product.objects.select_for_update().get(pk=variant.product_id)
+        if product.stock < item.quantity:
+            raise Conflict(f"Stok yetarli emas: {product.name_uz}")
 
         # Prices are taken from the server-side computation, never the client.
         unit_price = item.unit_price + item.service_cost
@@ -72,7 +74,8 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
         OrderItem.objects.create(
             order=order,
             variant=variant,
-            product_name_snapshot=variant.product.name_uz,
+            color=item.color,
+            product_name_snapshot=product.name_uz,
             unit_price=unit_price,
             quantity=item.quantity,
             width_cm=item.width_cm,
@@ -80,8 +83,8 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
             service_tariff=item.service_tariff,
             line_total=line_total,
         )
-        variant.stock -= item.quantity
-        variant.save(update_fields=["stock", "updated_at"])
+        product.stock -= item.quantity
+        product.save(update_fields=["stock", "updated_at"])
         subtotal += line_total
 
     order.subtotal = subtotal

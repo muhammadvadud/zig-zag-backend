@@ -35,7 +35,7 @@ class OrdersView(generics.ListAPIView):
         user = self.request.user
         qs = Order.objects.prefetch_related(
             "items__variant__product__images",
-            "items__variant__color",
+            "items__color",
             "items__service_tariff",
             Prefetch(
                 "items__variant__product__reviews",
@@ -85,7 +85,7 @@ class OrderDetail(generics.RetrieveAPIView):
         user = self.request.user
         qs = Order.objects.prefetch_related(
             "items__variant__product__images",
-            "items__variant__color",
+            "items__color",
             "items__service_tariff",
             Prefetch(
                 "items__variant__product__reviews",
@@ -125,7 +125,7 @@ class AdminOrderUpdate(APIView):
     def get(self, request, order_number):
         order = generics.get_object_or_404(
             Order.objects.select_related("user").prefetch_related(
-                "items__variant__product__images", "items__variant__color", "items__service_tariff"
+                "items__variant__product__images", "items__color", "items__service_tariff"
             ),
             order_number=order_number,
         )

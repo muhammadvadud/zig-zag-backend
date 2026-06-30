@@ -19,4 +19,4 @@ class CartAdmin(ModelAdmin):
 @admin.register(CartItem)
 class CartItemAdmin(ModelAdmin):
     list_display = ("cart", "variant", "quantity", "service_tariff")
-    search_fields = ("variant__sku",)
+    search_fields = ("variant__product__name_uz",)
