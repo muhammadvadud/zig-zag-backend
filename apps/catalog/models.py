@@ -115,6 +115,7 @@ class Product(BaseModel):
     discount_percent = models.PositiveIntegerField(default=0)
     is_new = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)  # soft-delete: sotuvdan olib tashlanadi, ma'lumot (buyurtma tarixi) saqlanadi
     size_mode = models.CharField(max_length=8, choices=SIZE_MODE_CHOICES, default=SIZE_MODE_VARIANT)
     custom_only = models.BooleanField(default=False)  # faqat o'lchov bo'yicha tikiladi (standart o'lcham yo'q) — size_mode dan hosila
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
@@ -152,7 +153,7 @@ class Product(BaseModel):
     @property
     def starting_price(self):
         """Eng arzon faol variant narxi (chegirmasiz) — "dan" narxi / eski narx uchun."""
-        prices = [v.price for v in self.variants.all() if v.is_active]
+        prices = [v.price for v in self.variants.all() if v.is_active and not v.is_deleted]
         return min(prices) if prices else Decimal("0")
 
     @property
@@ -170,6 +171,7 @@ class ProductVariant(BaseModel):
     height_cm = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # shu o'lchamning to'liq narxi (chegirmasiz)
     is_active = models.BooleanField(default=True)
+    is_deleted = models.BooleanField(default=False)  # soft-delete: sotuvdan yo'qoladi, buyurtma tarixi saqlanadi
 
     class Meta:
         ordering = ["price", "width_cm", "height_cm", "id"]

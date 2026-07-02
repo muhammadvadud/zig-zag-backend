@@ -74,7 +74,7 @@ class CategoryList(generics.ListAPIView):
 
 def _product_queryset():
     return (
-        Product.objects.filter(is_active=True)
+        Product.objects.filter(is_active=True, is_deleted=False)
         .select_related("category", "tailor")
         .prefetch_related("images", "variants", "styles", "rooms", "colors", "badges")
         .annotate(
@@ -94,8 +94,10 @@ class ProductList(generics.ListAPIView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        # min_price = eng arzon variant narxi (narx bo'yicha saralash uchun).
-        return _product_queryset().annotate(min_price=Min("variants__price")).distinct()
+        # min_price = eng arzon (o'chirilmagan) variant narxi — narx bo'yicha saralash uchun.
+        return _product_queryset().annotate(
+            min_price=Min("variants__price", filter=Q(variants__is_deleted=False))
+        ).distinct()
 
 
 class ProductDetail(generics.RetrieveAPIView):
@@ -128,7 +130,7 @@ class ProductFacets(generics.GenericAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return Product.objects.filter(is_active=True)
+        return Product.objects.filter(is_active=True, is_deleted=False)
 
     def get(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
@@ -159,7 +161,10 @@ class ProductFacets(generics.GenericAPIView):
             .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
             .values("id", "name", "hex", "count").order_by("name")
         )
-        price = qs.aggregate(min=Min("variants__price"), max=Max("variants__price"))
+        price = qs.aggregate(
+            min=Min("variants__price", filter=Q(variants__is_deleted=False)),
+            max=Max("variants__price", filter=Q(variants__is_deleted=False)),
+        )
         return Response({
             "categories": categories,
             "materials": materials,
@@ -398,7 +403,7 @@ class FavoriteDelete(generics.DestroyAPIView):
 class AdminProductList(generics.ListCreateAPIView):
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffRole]
-    queryset = Product.objects.prefetch_related("badges").all()
+    queryset = Product.objects.filter(is_deleted=False).prefetch_related("badges")
     filterset_fields = ["category", "is_active", "is_new"]
     search_fields = ["slug", "name_uz", "name_ru"]
 
@@ -406,8 +411,13 @@ class AdminProductList(generics.ListCreateAPIView):
 class AdminProductDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffRole]
-    queryset = Product.objects.prefetch_related("badges").all()
+    queryset = Product.objects.filter(is_deleted=False).prefetch_related("badges")
     lookup_field = "slug"
+
+    def perform_destroy(self, instance):
+        # Soft-delete: mahsulot o'chmaydi, sotuvdan olib tashlanadi (buyurtma tarixi saqlanadi).
+        instance.is_deleted = True
+        instance.save(update_fields=["is_deleted", "updated_at"])
 
 
 class AdminTailorList(generics.ListCreateAPIView):
@@ -574,7 +584,8 @@ class AdminProductVariantList(generics.ListCreateAPIView):
         return generics.get_object_or_404(Product, slug=self.kwargs["slug"])
 
     def get_queryset(self):
-        return ProductVariant.objects.filter(product__slug=self.kwargs["slug"])
+        # O'chirilgan (soft-delete) variantlar admin ro'yxatida ham ko'rinmaydi.
+        return ProductVariant.objects.filter(product__slug=self.kwargs["slug"], is_deleted=False)
 
     def perform_create(self, serializer):
         serializer.save(product=self._product())
@@ -585,7 +596,12 @@ class AdminProductVariantDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsStaffRole]
 
     def get_queryset(self):
-        return ProductVariant.objects.filter(product__slug=self.kwargs["slug"])
+        return ProductVariant.objects.filter(product__slug=self.kwargs["slug"], is_deleted=False)
+
+    def perform_destroy(self, instance):
+        # Soft-delete: o'chirmaymiz, sotuvdan olib tashlaymiz (buyurtma tarixi saqlanadi).
+        instance.is_deleted = True
+        instance.save(update_fields=["is_deleted", "updated_at"])
 
 
 class AdminProductImageList(generics.ListCreateAPIView):

@@ -164,14 +164,19 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
         return self.abs_url(main.image) if main else None
 
     def get_sizes_count(self, obj):
-        return obj.variants.filter(is_active=True).count()
+        return sum(1 for v in obj.variants.all() if v.is_active and not v.is_deleted)
 
 
 class ProductDetailSerializer(ProductListSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
-    variants = ProductVariantSerializer(many=True, read_only=True)
+    variants = serializers.SerializerMethodField()
     colors = ColorSerializer(many=True, read_only=True)
     tailor = TailorSerializer(read_only=True)
+
+    def get_variants(self, obj):
+        # Faqat sotuvdagi variantlar — o'chirilgan (soft-delete) va nofaollari chiqmaydi.
+        items = [v for v in obj.variants.all() if v.is_active and not v.is_deleted]
+        return ProductVariantSerializer(items, many=True, context=self.context).data
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + (

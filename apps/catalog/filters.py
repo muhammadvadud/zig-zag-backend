@@ -1,7 +1,9 @@
 import django_filters as filters
-from django.db.models import Max, Min
+from django.db.models import Max, Min, Q
 
 from .models import Product
+
+_LIVE_VARIANT = Q(variants__is_deleted=False)  # o'chirilgan variantlar narxga ta'sir qilmaydi
 
 
 class ProductFilter(filters.FilterSet):
@@ -19,7 +21,7 @@ class ProductFilter(filters.FilterSet):
         fields = ["category", "color", "material", "is_new", "min_price", "max_price"]
 
     def filter_min_price(self, queryset, name, value):
-        return queryset.annotate(_max_price=Max("variants__price")).filter(_max_price__gte=value)
+        return queryset.annotate(_max_price=Max("variants__price", filter=_LIVE_VARIANT)).filter(_max_price__gte=value)
 
     def filter_max_price(self, queryset, name, value):
-        return queryset.annotate(_min_price=Min("variants__price")).filter(_min_price__lte=value)
+        return queryset.annotate(_min_price=Min("variants__price", filter=_LIVE_VARIANT)).filter(_min_price__lte=value)

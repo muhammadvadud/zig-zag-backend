@@ -80,8 +80,8 @@ class BadgeAdmin(TranslationAdmin, ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(TranslationAdmin, ModelAdmin):
-    list_display = ("slug", "name_uz", "category", "tailor", "starting_price", "discount_percent", "is_new", "size_mode", "is_active")
-    list_filter = ("category", "tailor", "is_new", "size_mode", "is_active")
+    list_display = ("slug", "name_uz", "category", "tailor", "starting_price", "discount_percent", "is_new", "size_mode", "is_active", "is_deleted")
+    list_filter = ("category", "tailor", "is_new", "size_mode", "is_active", "is_deleted")
     search_fields = ("slug", "name_uz", "name_ru")
     autocomplete_fields = ("tailor",)
     filter_horizontal = ("badges", "styles", "rooms", "colors")
@@ -91,9 +91,9 @@ class ProductAdmin(TranslationAdmin, ModelAdmin):
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(ModelAdmin):
-    list_display = ("__str__", "product", "width_cm", "height_cm", "price", "is_active")
+    list_display = ("__str__", "product", "width_cm", "height_cm", "price", "is_active", "is_deleted")
     search_fields = ("name", "product__name_uz")
-    list_filter = ("is_active",)
+    list_filter = ("is_active", "is_deleted")
 
 
 @admin.register(ProductImage)
