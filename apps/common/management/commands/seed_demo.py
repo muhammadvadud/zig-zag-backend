@@ -242,7 +242,13 @@ class Command(BaseCommand):
             ("sheer-nur", "sheer", "Sheer Nur", "Тюль Нур", "sheer", 890000, False,
              ["minimal", "scandi", "modern"], ["living", "kids"]),
         ]
-        sku = 1000
+        # O'lcham rejimi (size_mode): tayyor o'lcham / faqat mijoz o'lchami / ikkalasi.
+        size_modes = {
+            "linen-sahar": "both",      # tayyor o'lchamlar + o'z o'lchami
+            "velvet-shoh": "variant",   # faqat tayyor o'lchamlar
+            "blackout-noir": "variant",
+            "sheer-nur": "custom",      # faqat o'lchov bo'yicha (custom_only avtomatik)
+        }
         for pi, (slug, cat_slug, nu, nr, mat, price, is_new, style_slugs, room_slugs) in enumerate(products):
             product, _ = Product.objects.update_or_create(
                 slug=slug,
@@ -253,19 +259,36 @@ class Command(BaseCommand):
                     "material": mat,
                     "base_price": Decimal(price),
                     "is_new": is_new,
-                    "custom_only": slug == "sheer-nur",  # demo: faqat o'lchov bo'yicha tikiladigan mahsulot
+                    "size_mode": size_modes.get(slug, "variant"),
                     "stock": 50,
                     "tailor": tailors[pi % len(tailors)] if tailors else None,
                 },
             )
             product.styles.set([styles[s] for s in style_slugs if s in styles])
             product.rooms.set([rooms[r] for r in room_slugs if r in rooms])
-            for color in list(colors.values())[:3]:
-                sku += 1
-                ProductVariant.objects.get_or_create(
-                    product=product,
-                    color=color,
-                    defaults={"sku": f"ZZ-{sku}", "stock": 20},
+            # Ranglar (M2M) — birinchi 3 tasi.
+            product.colors.set(list(colors.values())[:3])
+            # Tayyor o'lchamli variantlar (eni×bo'yi). Mavjud bo'sh variantlarni to'ldiramiz.
+            self._seed_sizes(product)
+
+    # Tayyor o'lchamli variantlar (S/M/L). Mavjud bo'sh variantlarni yangilaymiz
+    # (orderlar ular ga bog'langan bo'lishi mumkin — id larni saqlab qolamiz), yetmasa yaratamiz.
+    def _seed_sizes(self, product):
+        presets = [
+            ("S · 140×240", 140, 240, Decimal("0")),
+            ("M · 200×270", 200, 270, Decimal("300000")),
+            ("L · 260×280", 260, 280, Decimal("600000")),
+        ]
+        existing = list(product.variants.order_by("id"))
+        for i, (name, w, h, extra) in enumerate(presets):
+            if i < len(existing):
+                v = existing[i]
+                v.name, v.width_cm, v.height_cm, v.extra_price = name, w, h, extra
+                v.is_active = True
+                v.save()
+            else:
+                ProductVariant.objects.create(
+                    product=product, name=name, width_cm=w, height_cm=h, extra_price=extra
                 )
 
     def _hero(self):
@@ -490,12 +513,11 @@ class Command(BaseCommand):
         palette = list(colors.values()) or list(Color.objects.all())
         for product in Product.objects.all():
             if not product.variants.exists():
-                color = palette[0] if palette else Color.objects.create(name="Krem", hex="#EBE3D5")
-                ProductVariant.objects.get_or_create(
-                    product=product,
-                    color=color,
-                    defaults={"sku": f"ZZ-AUTO-{product.id}", "stock": 20},
+                ProductVariant.objects.create(
+                    product=product, name="Standart · 200×270", width_cm=200, height_cm=270
                 )
+            if not product.colors.exists() and palette:
+                product.colors.set(palette[:3])
             if not product.images.exists():
                 # Lightweight placeholder image row so the dashboard has thumbnails.
                 img = ProductImage(product=product, is_main=True, sort_order=0)

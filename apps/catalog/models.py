@@ -96,6 +96,15 @@ class Badge(BaseModel):
 
 
 class Product(BaseModel):
+    SIZE_MODE_VARIANT = "variant"
+    SIZE_MODE_CUSTOM = "custom"
+    SIZE_MODE_BOTH = "both"
+    SIZE_MODE_CHOICES = [
+        (SIZE_MODE_VARIANT, "Tayyor o'lchamlar (variant)"),
+        (SIZE_MODE_CUSTOM, "Faqat mijoz o'lchami (custom)"),
+        (SIZE_MODE_BOTH, "Ikkalasi ham"),
+    ]
+
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=150, default="")
@@ -106,7 +115,8 @@ class Product(BaseModel):
     discount_percent = models.PositiveIntegerField(default=0)
     is_new = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
-    custom_only = models.BooleanField(default=False)  # faqat o'lchov bo'yicha tikiladi (standart o'lcham yo'q)
+    size_mode = models.CharField(max_length=8, choices=SIZE_MODE_CHOICES, default=SIZE_MODE_VARIANT)
+    custom_only = models.BooleanField(default=False)  # faqat o'lchov bo'yicha tikiladi (standart o'lcham yo'q) — size_mode dan hosila
     stock = models.PositiveIntegerField(default=0)
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     views_count = models.PositiveIntegerField(default=0)
@@ -127,6 +137,11 @@ class Product(BaseModel):
 
     def __str__(self):
         return self.slug
+
+    def save(self, *args, **kwargs):
+        # custom_only ni size_mode bilan sinxronlaymiz (mijozlar saytidagi eski mantiq shu boolean ga tayanadi).
+        self.custom_only = self.size_mode == self.SIZE_MODE_CUSTOM
+        super().save(*args, **kwargs)
 
     @property
     def final_price(self):
