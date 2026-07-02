@@ -80,7 +80,7 @@ class BadgeAdmin(TranslationAdmin, ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(TranslationAdmin, ModelAdmin):
-    list_display = ("slug", "name_uz", "category", "tailor", "starting_price", "discount_percent", "stock", "is_new", "size_mode", "is_active")
+    list_display = ("slug", "name_uz", "category", "tailor", "starting_price", "discount_percent", "is_new", "size_mode", "is_active")
     list_filter = ("category", "tailor", "is_new", "size_mode", "is_active")
     search_fields = ("slug", "name_uz", "name_ru")
     autocomplete_fields = ("tailor",)

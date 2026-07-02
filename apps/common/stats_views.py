@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.ai.models import AIConversation, AIImageGeneration, AIMessage, AIUsageQuota
-from apps.catalog.models import Product, Review
+from apps.catalog.models import Review
 from apps.orders.models import MeasurementRequest, Order, OrderItem
 from apps.payments.models import Payment
 
@@ -318,25 +318,6 @@ class AIUsageStats(AdminStatsBase):
                 "top_users": top_users,
             }
         )
-
-
-class LowStockStats(AdminStatsBase):
-    def get(self, request):
-        try:
-            threshold = int(request.query_params.get("threshold", 10))
-        except (TypeError, ValueError):
-            threshold = 10
-
-        rows = (
-            Product.objects.filter(stock__lt=threshold)
-            .order_by("stock")
-            .values("id", "name", "slug", "stock")
-        )
-        items = [
-            {"id": r["id"], "name": r["name"], "slug": r["slug"], "stock": r["stock"]}
-            for r in rows
-        ]
-        return Response({"items": items})
 
 
 class RecentOrdersStats(AdminStatsBase):

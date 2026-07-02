@@ -78,7 +78,6 @@ class Command(BaseCommand):
         orders = self._orders(customers)
         self._measurements(customers)
         self._extra_reviews(customers)
-        self._low_stock()
 
         self.stdout.write(self.style.SUCCESS("Demo ma'lumotlar yuklandi."))
         self.stdout.write("--- Summary ---")
@@ -91,7 +90,6 @@ class Command(BaseCommand):
         self.stdout.write(f"Payments:     {Payment.objects.count()}")
         self.stdout.write(f"Reviews:      {Review.objects.count()} (unpublished: {Review.objects.filter(is_published=False).count()})")
         self.stdout.write(f"Measurements: {MeasurementRequest.objects.count()}")
-        self.stdout.write(f"Low stock:    {Product.objects.filter(stock__lt=10).count()}")
 
     def _flush(self):
         OrderItem.objects.all().delete()
@@ -262,7 +260,6 @@ class Command(BaseCommand):
                     "price_per_m2": per_m2.get(slug),
                     "is_new": is_new,
                     "size_mode": size_modes.get(slug, "variant"),
-                    "stock": 50,
                     "tailor": tailors[pi % len(tailors)] if tailors else None,
                 },
             )
@@ -695,13 +692,6 @@ class Command(BaseCommand):
                         "is_published": random.random() < 0.4,
                     },
                 )
-
-    def _low_stock(self):
-        """Drop a couple of products into the low-stock band for the demo."""
-        for product in Product.objects.all()[:2]:
-            product.stock = random.randint(2, 9)
-            product.save(update_fields=["stock"])
-
 
 # 1x1 transparent PNG used as a placeholder product thumbnail.
 _PLACEHOLDER_PNG = (

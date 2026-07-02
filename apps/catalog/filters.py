@@ -13,19 +13,13 @@ class ProductFilter(filters.FilterSet):
     # Narx variantlarda — mahsulotning eng arzon/eng qimmat variant narxi bo'yicha filtrlaymiz.
     min_price = filters.NumberFilter(method="filter_min_price")
     max_price = filters.NumberFilter(method="filter_max_price")
-    in_stock = filters.BooleanFilter(method="filter_in_stock")
 
     class Meta:
         model = Product
-        fields = ["category", "color", "material", "is_new", "min_price", "max_price", "in_stock"]
+        fields = ["category", "color", "material", "is_new", "min_price", "max_price"]
 
     def filter_min_price(self, queryset, name, value):
         return queryset.annotate(_max_price=Max("variants__price")).filter(_max_price__gte=value)
 
     def filter_max_price(self, queryset, name, value):
         return queryset.annotate(_min_price=Min("variants__price")).filter(_min_price__lte=value)
-
-    def filter_in_stock(self, queryset, name, value):
-        if value:
-            return queryset.filter(stock__gt=0)
-        return queryset

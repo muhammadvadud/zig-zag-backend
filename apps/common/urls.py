@@ -2,7 +2,6 @@ from django.urls import path
 
 from .stats_views import (
     AIUsageStats,
-    LowStockStats,
     OrdersByStatusStats,
     OverviewStats,
     PaymentsStats,
@@ -30,7 +29,6 @@ urlpatterns = [
     ),
     path("admin/stats/payments/", PaymentsStats.as_view(), name="admin-stats-payments"),
     path("admin/stats/ai-usage/", AIUsageStats.as_view(), name="admin-stats-ai-usage"),
-    path("admin/stats/low-stock/", LowStockStats.as_view(), name="admin-stats-low-stock"),
     path(
         "admin/stats/recent-orders/",
         RecentOrdersStats.as_view(),

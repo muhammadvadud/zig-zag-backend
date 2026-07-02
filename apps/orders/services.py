@@ -2,8 +2,8 @@ from datetime import datetime
 
 from django.db import transaction
 
-from apps.catalog.models import Product, ProductVariant
-from apps.common.exceptions import BusinessError, Conflict
+from apps.catalog.models import ProductVariant
+from apps.common.exceptions import BusinessError
 
 from .models import Order, OrderItem
 
@@ -45,7 +45,7 @@ def generate_order_number():
 def create_order_from_cart(user, cart, address=None, comment="", payment_provider=""):
     """Build an order from the cart, recomputing every price server-side.
 
-    Stock is locked with select_for_update to avoid overselling on races.
+    Mahsulotlar buyurtmaga qarab tikiladi — ombor (stok) tekshiruvi yo'q.
     """
 
     items = list(cart.items.select_related("variant__product", "color", "service_tariff").all())
@@ -63,10 +63,8 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
     subtotal = 0
     for item in items:
         variant = ProductVariant.objects.select_related("product").get(pk=item.variant_id)
-        # Stok endi mahsulot darajasida (variant — tayyor o'lcham, alohida stogi yo'q).
-        product = Product.objects.select_for_update().get(pk=variant.product_id)
-        if product.stock < item.quantity:
-            raise Conflict(f"Stok yetarli emas: {product.name_uz}")
+        # Buyurtmaga qarab ishlab chiqariladi — ombor (stok) tekshiruvi yo'q.
+        product = variant.product
 
         # Prices are taken from the server-side computation, never the client.
         unit_price = item.unit_price + item.service_cost
@@ -83,8 +81,6 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
             service_tariff=item.service_tariff,
             line_total=line_total,
         )
-        product.stock -= item.quantity
-        product.save(update_fields=["stock", "updated_at"])
         subtotal += line_total
 
     order.subtotal = subtotal

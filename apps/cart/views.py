@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog.models import Color, ProductVariant
-from apps.common.exceptions import Conflict
 from apps.services.models import ServiceTariff
 
 from .models import CartItem
@@ -35,8 +34,6 @@ class CartItemCreateView(APIView):
 
         cart = get_or_create_cart(request)
         variant = ProductVariant.objects.select_related("product").get(pk=data["variant_id"])
-        if variant.product.stock < data["quantity"]:
-            raise Conflict("Stok yetarli emas.")
 
         tariff = None
         if data.get("service_tariff"):
@@ -82,8 +79,6 @@ class CartItemDetailView(APIView):
         data = serializer.validated_data
 
         if "quantity" in data:
-            if item.variant.product.stock < data["quantity"]:
-                raise Conflict("Stok yetarli emas.")
             item.quantity = data["quantity"]
         if "width_cm" in data:
             item.width_cm = data["width_cm"]

@@ -117,7 +117,6 @@ class Product(BaseModel):
     is_active = models.BooleanField(default=True)
     size_mode = models.CharField(max_length=8, choices=SIZE_MODE_CHOICES, default=SIZE_MODE_VARIANT)
     custom_only = models.BooleanField(default=False)  # faqat o'lchov bo'yicha tikiladi (standart o'lcham yo'q) — size_mode dan hosila
-    stock = models.PositiveIntegerField(default=0)
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     views_count = models.PositiveIntegerField(default=0)
     styles = models.ManyToManyField("Style", blank=True, related_name="products")
