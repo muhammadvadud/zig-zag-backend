@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.utils.text import slugify
 from rest_framework import serializers
 
@@ -102,7 +104,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductVariant
-        fields = ("id", "name", "width_cm", "height_cm", "extra_price", "unit_price", "is_active", "label")
+        fields = ("id", "name", "width_cm", "height_cm", "price", "unit_price", "is_active", "label")
 
     def get_label(self, obj):
         if obj.name:
@@ -125,6 +127,7 @@ class TailorSerializer(ImageUrlMixin, serializers.ModelSerializer):
 
 class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
     category = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+    starting_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     final_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     main_image = serializers.SerializerMethodField()
     sizes_count = serializers.SerializerMethodField()
@@ -140,7 +143,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "slug",
             "name",
             "category",
-            "base_price",
+            "starting_price",
             "discount_percent",
             "final_price",
             "is_new",
@@ -357,38 +360,38 @@ class WorkSerializer(ImageUrlMixin, serializers.ModelSerializer):
 
 
 class SlugAutoMixin:
-    """Auto-generate a unique slug from ``slug_source`` when slug is blank.
+    """Slug'ni to'liq orqa tarafda yaratadi: ``slugify(manba)-<pk>``.
 
-    Subclasses set ``slug_source`` to the field name to slugify (e.g. "name"
-    or "title"). Collisions are resolved by appending -2, -3, ...
+    Admin slug kiritmaydi/ko'rmaydi — nomdan hosil qilinadi, oxiriga obyektning
+    o'z id si qo'shiladi, shu bois slug har doim unikal. Mijoz yuborgan slug
+    e'tiborga olinmaydi. Subclasslar ``slug_source`` (masalan "name" yoki "title")
+    ni belgilaydi.
     """
 
     slug_source = "name"
 
-    def _unique_slug(self, base, instance=None):
-        base = base or "item"
-        candidate = base
-        model = self.Meta.model
-        n = 2
-        qs = model.objects.all()
-        if instance is not None:
-            qs = qs.exclude(pk=instance.pk)
-        while qs.filter(slug=candidate).exists():
-            candidate = f"{base}-{n}"
-            n += 1
-        return candidate
+    def _build_slug(self, instance):
+        base = slugify(getattr(instance, self.slug_source, "") or "") or "item"
+        base = base[:40].rstrip("-")  # SlugField(max_length=50) ichida id uchun joy qoldiramiz
+        return f"{base}-{instance.pk}"
 
     def create(self, validated_data):
-        if not validated_data.get("slug"):
-            base = slugify(validated_data.get(self.slug_source, "") or "")
-            validated_data["slug"] = self._unique_slug(base)
-        return super().create(validated_data)
+        validated_data.pop("slug", None)  # slug orqa tarafda yaratiladi
+        # pk hali yo'q — vaqtinchalik unikal slug bilan yaratamiz, so'ng id bilan qayta yozamiz.
+        validated_data["slug"] = f"tmp-{uuid4().hex[:12]}"
+        instance = super().create(validated_data)
+        instance.slug = self._build_slug(instance)
+        instance.save(update_fields=["slug"])
+        return instance
 
     def update(self, instance, validated_data):
-        # Blank slug on edit: keep the existing one (don't overwrite with "").
-        if "slug" in validated_data and not validated_data["slug"]:
-            validated_data.pop("slug")
-        return super().update(instance, validated_data)
+        validated_data.pop("slug", None)  # slug orqa tarafda boshqariladi
+        instance = super().update(instance, validated_data)
+        new_slug = self._build_slug(instance)
+        if instance.slug != new_slug:
+            instance.slug = new_slug
+            instance.save(update_fields=["slug"])
+        return instance
 
 
 class AdminColorSerializer(serializers.ModelSerializer):
@@ -403,7 +406,7 @@ class AdminProductVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductVariant
-        fields = ("id", "name", "width_cm", "height_cm", "extra_price", "unit_price", "is_active")
+        fields = ("id", "name", "width_cm", "height_cm", "price", "unit_price", "is_active")
 
 
 class AdminProductImageSerializer(ImageUrlMixin, serializers.ModelSerializer):
@@ -427,6 +430,8 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
 
     slug_source = "name_uz"
 
+    # Narx variantlarda — bu faqat ro'yxat uchun "dan" narxi (eng arzon variant).
+    starting_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     badges = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Badge.objects.all(), required=False
     )
@@ -453,7 +458,7 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
             "description_uz",
             "description_ru",
             "material",
-            "base_price",
+            "starting_price",
             "price_per_m2",
             "discount_percent",
             "is_active",
@@ -468,7 +473,7 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
             "colors_detail",
         )
         extra_kwargs = {
-            "slug": {"required": False, "allow_blank": True},
+            "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
         }
 
 
@@ -487,7 +492,7 @@ class AdminCategorySerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSer
             "is_active",
         )
         extra_kwargs = {
-            "slug": {"required": False, "allow_blank": True},
+            "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
             "icon": {"required": False},
             "image": {"required": False},
         }
@@ -514,7 +519,7 @@ class AdminStyleSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerial
             "is_active",
         )
         extra_kwargs = {
-            "slug": {"required": False, "allow_blank": True},
+            "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
             "image": {"required": False},
         }
 
@@ -537,7 +542,7 @@ class AdminRoomSerializer(SlugAutoMixin, serializers.ModelSerializer):
             "is_active",
         )
         extra_kwargs = {
-            "slug": {"required": False, "allow_blank": True},
+            "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
         }
 
 
@@ -565,7 +570,7 @@ class AdminCollectionSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelS
             "is_active",
         )
         extra_kwargs = {
-            "slug": {"required": False, "allow_blank": True},
+            "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
             "image": {"required": False},
         }
 

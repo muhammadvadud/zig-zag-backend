@@ -249,6 +249,8 @@ class Command(BaseCommand):
             "blackout-noir": "variant",
             "sheer-nur": "custom",      # faqat o'lchov bo'yicha (custom_only avtomatik)
         }
+        # Custom/both mahsulotlar uchun 1 m² narxi (per-m²) — mijoz o'z o'lchamini kiritganda.
+        per_m2 = {"linen-sahar": Decimal("350000"), "sheer-nur": Decimal("250000")}
         for pi, (slug, cat_slug, nu, nr, mat, price, is_new, style_slugs, room_slugs) in enumerate(products):
             product, _ = Product.objects.update_or_create(
                 slug=slug,
@@ -257,7 +259,7 @@ class Command(BaseCommand):
                     "name_uz": nu,
                     "name_ru": nr,
                     "material": mat,
-                    "base_price": Decimal(price),
+                    "price_per_m2": per_m2.get(slug),
                     "is_new": is_new,
                     "size_mode": size_modes.get(slug, "variant"),
                     "stock": 50,
@@ -268,27 +270,27 @@ class Command(BaseCommand):
             product.rooms.set([rooms[r] for r in room_slugs if r in rooms])
             # Ranglar (M2M) — birinchi 3 tasi.
             product.colors.set(list(colors.values())[:3])
-            # Tayyor o'lchamli variantlar (eni×bo'yi). Mavjud bo'sh variantlarni to'ldiramiz.
-            self._seed_sizes(product)
+            # Tayyor o'lchamli variantlar — har birining to'liq narxi bilan.
+            self._seed_sizes(product, Decimal(price))
 
-    # Tayyor o'lchamli variantlar (S/M/L). Mavjud bo'sh variantlarni yangilaymiz
-    # (orderlar ular ga bog'langan bo'lishi mumkin — id larni saqlab qolamiz), yetmasa yaratamiz.
-    def _seed_sizes(self, product):
+    # Tayyor o'lchamli variantlar (S/M/L), har biri o'z narxiga ega. Mavjud bo'sh
+    # variantlarni yangilaymiz (orderlar bog'langan bo'lishi mumkin — id saqlanadi), yetmasa yaratamiz.
+    def _seed_sizes(self, product, base):
         presets = [
-            ("S · 140×240", 140, 240, Decimal("0")),
-            ("M · 200×270", 200, 270, Decimal("300000")),
-            ("L · 260×280", 260, 280, Decimal("600000")),
+            ("S · 140×240", 140, 240, base),
+            ("M · 200×270", 200, 270, base + Decimal("300000")),
+            ("L · 260×280", 260, 280, base + Decimal("600000")),
         ]
         existing = list(product.variants.order_by("id"))
-        for i, (name, w, h, extra) in enumerate(presets):
+        for i, (name, w, h, price) in enumerate(presets):
             if i < len(existing):
                 v = existing[i]
-                v.name, v.width_cm, v.height_cm, v.extra_price = name, w, h, extra
+                v.name, v.width_cm, v.height_cm, v.price = name, w, h, price
                 v.is_active = True
                 v.save()
             else:
                 ProductVariant.objects.create(
-                    product=product, name=name, width_cm=w, height_cm=h, extra_price=extra
+                    product=product, name=name, width_cm=w, height_cm=h, price=price
                 )
 
     def _hero(self):
@@ -514,7 +516,8 @@ class Command(BaseCommand):
         for product in Product.objects.all():
             if not product.variants.exists():
                 ProductVariant.objects.create(
-                    product=product, name="Standart · 200×270", width_cm=200, height_cm=270
+                    product=product, name="Standart · 200×270", width_cm=200, height_cm=270,
+                    price=Decimal("500000"),
                 )
             if not product.colors.exists() and palette:
                 product.colors.set(palette[:3])

@@ -45,13 +45,26 @@ class CartItem(BaseModel):
         ordering = ["created_at"]
 
     @property
+    def is_custom(self):
+        """Mijoz o'z o'lchamini kiritganmi (tayyor variant emas)."""
+        return bool(self.width_cm and self.height_cm)
+
+    @property
     def area_m2(self):
-        if self.width_cm and self.height_cm:
-            return (Decimal(self.width_cm) / 100) * (Decimal(self.height_cm) / 100)
+        # Custom bo'lsa mijoz o'lchami, aks holda variantning tayyor o'lchami (xizmat narxi uchun).
+        w = self.width_cm or self.variant.width_cm
+        h = self.height_cm or self.variant.height_cm
+        if w and h:
+            return (Decimal(w) / 100) * (Decimal(h) / 100)
         return Decimal("0")
 
     @property
     def unit_price(self):
+        # Custom o'lcham → per-m² narx (maydonga qarab); tayyor o'lcham → variant narxi.
+        product = self.variant.product
+        if self.is_custom and product.price_per_m2:
+            area = (Decimal(self.width_cm) / 100) * (Decimal(self.height_cm) / 100)
+            return product.apply_discount(product.price_per_m2 * area)
         return self.variant.unit_price
 
     @property

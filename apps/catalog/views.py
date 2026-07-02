@@ -90,11 +90,12 @@ class ProductList(generics.ListAPIView):
     permission_classes = [AllowAny]
     filterset_class = ProductFilter
     search_fields = ["name_uz", "name_ru", "material"]
-    ordering_fields = ["base_price", "created_at", "rating_avg", "views_count"]
+    ordering_fields = ["min_price", "created_at", "rating_avg", "views_count"]
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return _product_queryset().distinct()
+        # min_price = eng arzon variant narxi (narx bo'yicha saralash uchun).
+        return _product_queryset().annotate(min_price=Min("variants__price")).distinct()
 
 
 class ProductDetail(generics.RetrieveAPIView):
@@ -158,7 +159,7 @@ class ProductFacets(generics.GenericAPIView):
             .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
             .values("id", "name", "hex", "count").order_by("name")
         )
-        price = qs.aggregate(min=Min("base_price"), max=Max("base_price"))
+        price = qs.aggregate(min=Min("variants__price"), max=Max("variants__price"))
         return Response({
             "categories": categories,
             "materials": materials,

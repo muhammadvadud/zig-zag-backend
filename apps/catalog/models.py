@@ -110,8 +110,8 @@ class Product(BaseModel):
     name = models.CharField(max_length=150, default="")
     description = models.TextField(blank=True, default="")
     material = models.CharField(max_length=64, blank=True)
-    base_price = models.DecimalField(max_digits=12, decimal_places=2)
-    price_per_m2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    # Narx endi variantlarda (tayyor o'lchamlar) va per-m² da (custom) — alohida "asosiy narx" yo'q.
+    price_per_m2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # custom o'lcham narxi (1 m²)
     discount_percent = models.PositiveIntegerField(default=0)
     is_new = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -143,26 +143,37 @@ class Product(BaseModel):
         self.custom_only = self.size_mode == self.SIZE_MODE_CUSTOM
         super().save(*args, **kwargs)
 
+    def apply_discount(self, amount):
+        """Berilgan summaga mahsulot chegirmasini qo'llaydi (butun so'mga yaxlitlab)."""
+        amount = Decimal(amount or 0)
+        if self.discount_percent:
+            amount = amount * Decimal(100 - self.discount_percent) / Decimal(100)
+        return amount.quantize(Decimal("1"))
+
+    @property
+    def starting_price(self):
+        """Eng arzon faol variant narxi (chegirmasiz) — "dan" narxi / eski narx uchun."""
+        prices = [v.price for v in self.variants.all() if v.is_active]
+        return min(prices) if prices else Decimal("0")
+
     @property
     def final_price(self):
-        if self.discount_percent:
-            factor = Decimal(100 - self.discount_percent) / Decimal(100)
-            return (self.base_price * factor).quantize(Decimal("1"))
-        return self.base_price
+        """Kartada ko'rsatiladigan narx — eng arzon variant, chegirma bilan."""
+        return self.apply_discount(self.starting_price)
 
 
 class ProductVariant(BaseModel):
-    """Tayyor o'lchamli variant: mahsulotning belgilangan eni × bo'yi (sm)."""
+    """Tayyor o'lchamli variant: mahsulotning belgilangan eni × bo'yi (sm) va narxi."""
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     name = models.CharField(max_length=120, blank=True, default="")  # masalan "150×250 sm"
     width_cm = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
     height_cm = models.DecimalField(max_digits=7, decimal_places=1, null=True, blank=True)
-    extra_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # shu o'lchamning to'liq narxi (chegirmasiz)
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["width_cm", "height_cm", "id"]
+        ordering = ["price", "width_cm", "height_cm", "id"]
 
     def __str__(self):
         if self.name:
@@ -173,7 +184,8 @@ class ProductVariant(BaseModel):
 
     @property
     def unit_price(self):
-        return self.product.final_price + self.extra_price
+        """Variant narxi (mahsulot chegirmasi bilan)."""
+        return self.product.apply_discount(self.price)
 
 
 class ProductImage(BaseModel):
