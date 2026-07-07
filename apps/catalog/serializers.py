@@ -426,7 +426,7 @@ class AdminProductImageSerializer(ImageUrlMixin, serializers.ModelSerializer):
         return self.abs_url(obj.image)
 
 
-class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
+class AdminProductSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
     """Full read/write product representation for staff management.
 
     Slug bo'sh qoldirilsa name_uz dan avtomatik yaratiladi.
@@ -450,6 +450,7 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
         many=True, queryset=Color.objects.all(), required=False
     )
     colors_detail = AdminColorSerializer(many=True, read_only=True, source="colors")
+    main_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -474,10 +475,16 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
             "rooms",
             "colors",
             "colors_detail",
+            "main_image",
         )
         extra_kwargs = {
             "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
         }
+
+    def get_main_image(self, obj):
+        # Meta.ordering = ["-is_main", "sort_order"] — birinchi rasm har doim asosiy (yoki mavjud bo'lmasa birinchi).
+        images = list(obj.images.all())
+        return self.abs_url(images[0].image) if images else None
 
 
 class AdminCategorySerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):

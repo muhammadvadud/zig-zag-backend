@@ -403,7 +403,7 @@ class FavoriteDelete(generics.DestroyAPIView):
 class AdminProductList(generics.ListCreateAPIView):
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffRole]
-    queryset = Product.objects.filter(is_deleted=False).prefetch_related("badges")
+    queryset = Product.objects.filter(is_deleted=False).prefetch_related("badges", "images")
     filterset_fields = ["category", "is_active", "is_new"]
     search_fields = ["slug", "name_uz", "name_ru"]
 
