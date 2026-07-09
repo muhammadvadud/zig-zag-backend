@@ -10,7 +10,8 @@ class ProductFilter(filters.FilterSet):
     category = filters.CharFilter(field_name="category__slug")
     # Rang endi mahsulot darajasida (Product.colors), variantda emas.
     color = filters.CharFilter(field_name="colors__name_uz", lookup_expr="iexact")
-    material = filters.CharFilter(field_name="material", lookup_expr="iexact")
+    # Mato/material endi alohida model (M2M) — slug bo'yicha filtrlaymiz.
+    material = filters.CharFilter(field_name="materials__slug", lookup_expr="iexact")
     is_new = filters.BooleanFilter(field_name="is_new")
     # Narx variantlarda — mahsulotning eng arzon/eng qimmat variant narxi bo'yicha filtrlaymiz.
     min_price = filters.NumberFilter(method="filter_min_price")

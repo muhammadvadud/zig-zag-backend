@@ -29,9 +29,11 @@ def suggest_products(text, limit=3):
         .filter(
             Q(name_uz__icontains=text)
             | Q(name_ru__icontains=text)
-            | Q(material__icontains=text)
+            | Q(materials__name_uz__icontains=text)
+            | Q(materials__name_ru__icontains=text)
             | Q(category__slug__icontains=text)
-        )[:limit]
+        )
+        .distinct()[:limit]
     )
     return [{"id": p.id, "name": p.name_uz, "slug": p.slug} for p in qs]
 

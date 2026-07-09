@@ -8,6 +8,7 @@ from .models import (
     Collection,
     Color,
     HeroContent,
+    Material,
     Product,
     Room,
     Style,
@@ -35,6 +36,11 @@ class StyleTranslationOptions(TranslationOptions):
 @register(Room)
 class RoomTranslationOptions(TranslationOptions):
     fields = ("name",)
+
+
+@register(Material)
+class MaterialTranslationOptions(TranslationOptions):
+    fields = ("name", "description")
 
 
 @register(Tailor)

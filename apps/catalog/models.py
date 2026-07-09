@@ -58,6 +58,24 @@ class Room(BaseModel):
         return self.slug
 
 
+class Material(BaseModel):
+    """Mato/material — mahsulot qaysi matolardan tayyorlangani.
+
+    Bir mahsulotga bir nechta material biriktirilishi mumkin (M2M)."""
+
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=100, default="")
+    description = models.CharField(max_length=255, blank=True, default="")
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.slug
+
+
 class Tailor(BaseModel):
     """Chevar usta — mahsulotni tikuvchi (mahsulotga biriktiriladi)."""
 
@@ -109,7 +127,6 @@ class Product(BaseModel):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=150, default="")
     description = models.TextField(blank=True, default="")
-    material = models.CharField(max_length=64, blank=True)
     # Narx endi variantlarda (tayyor o'lchamlar) va per-m² da (custom) — alohida "asosiy narx" yo'q.
     price_per_m2 = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # custom o'lcham narxi (1 m²)
     discount_percent = models.PositiveIntegerField(default=0)
@@ -120,6 +137,7 @@ class Product(BaseModel):
     custom_only = models.BooleanField(default=False)  # faqat o'lchov bo'yicha tikiladi (standart o'lcham yo'q) — size_mode dan hosila
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     views_count = models.PositiveIntegerField(default=0)
+    materials = models.ManyToManyField("Material", blank=True, related_name="products")
     styles = models.ManyToManyField("Style", blank=True, related_name="products")
     rooms = models.ManyToManyField("Room", blank=True, related_name="products")
     colors = models.ManyToManyField("Color", blank=True, related_name="products")

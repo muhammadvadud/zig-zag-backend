@@ -18,6 +18,7 @@ from .models import (
     Color,
     Favorite,
     HeroContent,
+    Material,
     Product,
     ProductImage,
     ProductVariant,
@@ -36,6 +37,7 @@ from .serializers import (
     AdminColorSerializer,
     AdminFAQSerializer,
     AdminHeroContentSerializer,
+    AdminMaterialSerializer,
     AdminProductImageSerializer,
     AdminProductSerializer,
     AdminProductVariantSerializer,
@@ -49,6 +51,7 @@ from .serializers import (
     FAQSerializer,
     FavoriteSerializer,
     HeroContentSerializer,
+    MaterialSerializer,
     TailorSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
@@ -76,7 +79,7 @@ def _product_queryset():
     return (
         Product.objects.filter(is_active=True, is_deleted=False)
         .select_related("category", "tailor")
-        .prefetch_related("images", "variants", "styles", "rooms", "colors", "badges")
+        .prefetch_related("images", "variants", "styles", "rooms", "materials", "colors", "badges")
         .annotate(
             reviews_count=Count(
                 "reviews", filter=Q(reviews__is_published=True), distinct=True
@@ -89,7 +92,7 @@ class ProductList(generics.ListAPIView):
     serializer_class = ProductListSerializer
     permission_classes = [AllowAny]
     filterset_class = ProductFilter
-    search_fields = ["name_uz", "name_ru", "material"]
+    search_fields = ["name_uz", "name_ru", "materials__name_uz", "materials__name_ru"]
     ordering_fields = ["min_price", "created_at", "rating_avg", "views_count"]
     ordering = ["-created_at"]
 
@@ -126,7 +129,7 @@ class ProductFacets(generics.GenericAPIView):
 
     permission_classes = [AllowAny]
     filterset_class = ProductFilter
-    search_fields = ["name_uz", "name_ru", "material"]
+    search_fields = ["name_uz", "name_ru", "materials__name_uz", "materials__name_ru"]
     pagination_class = None
 
     def get_queryset(self):
@@ -142,9 +145,10 @@ class ProductFacets(generics.GenericAPIView):
             if r["category__slug"]
         ]
         materials = [
-            {"value": r["material"], "count": r["count"]}
-            for r in qs.exclude(material="").values("material").annotate(count=Count("id")).order_by("-count")
-            if r["material"]
+            {"slug": m.slug, "name": m.name, "count": m.count}
+            for m in Material.objects.filter(products__in=ids)
+            .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
+            .order_by("sort_order", "name")
         ]
         styles = list(
             Style.objects.filter(products__in=ids)
@@ -308,6 +312,13 @@ class RoomList(generics.ListAPIView):
     permission_classes = [AllowAny]
     pagination_class = None
     queryset = Room.objects.filter(is_active=True)
+
+
+class MaterialList(generics.ListAPIView):
+    serializer_class = MaterialSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+    queryset = Material.objects.filter(is_active=True)
 
 
 class BannerList(generics.ListAPIView):
@@ -491,6 +502,19 @@ class AdminRoomDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminRoomSerializer
     permission_classes = [IsAdminRole]
     queryset = Room.objects.all()
+
+
+class AdminMaterialList(generics.ListCreateAPIView):
+    serializer_class = AdminMaterialSerializer
+    permission_classes = [IsAdminRole]
+    pagination_class = None
+    queryset = Material.objects.annotate(products_count=Count("products"))
+
+
+class AdminMaterialDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminMaterialSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Material.objects.annotate(products_count=Count("products"))
 
 
 class AdminColorList(generics.ListCreateAPIView):
