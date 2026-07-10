@@ -30,6 +30,16 @@ class IsAdminRole(BasePermission):
         return bool(user and user.is_authenticated and user.role == "admin")
 
 
+class IsOrderStaff(BasePermission):
+    """Employee, manager or admin — anyone whose job touches order fulfilment."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user and user.is_authenticated and user.role in ("employee", "manager", "admin")
+        )
+
+
 class ReadOnlyOrStaff(BasePermission):
     """Anyone can read; only staff can write."""
 

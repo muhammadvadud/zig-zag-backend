@@ -73,6 +73,17 @@ class AdminUserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "phone", "date_joined", "is_phone_verified")
 
+    def validate_role(self, value):
+        # Admin — dev-only, operatsion ish qilmaydi. Faqat admin o'zi boshqa
+        # foydalanuvchiga admin huquqini bera oladi (manager esa emas).
+        request = self.context.get("request")
+        requester = getattr(request, "user", None)
+        if value == "admin" and not (requester and requester.role == "admin"):
+            raise serializers.ValidationError(
+                "Faqat admin boshqa foydalanuvchiga 'admin' rolini bera oladi."
+            )
+        return value
+
 
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
