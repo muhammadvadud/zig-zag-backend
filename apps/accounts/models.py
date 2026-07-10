@@ -47,6 +47,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
     language = models.CharField(max_length=2, choices=LANG_CHOICES, default="uz")
+    # Telegram bot orqali xodim/menejer/adminga zakaz bildirishnomalarini yuborish uchun.
+    telegram_chat_id = models.CharField(max_length=32, blank=True, default="")
+    telegram_enabled = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()

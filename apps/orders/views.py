@@ -9,8 +9,9 @@ from apps.catalog.models import Review
 from apps.accounts.models import Address
 from apps.cart.services import get_or_create_cart
 from apps.common.exceptions import BusinessError
-from apps.common.permissions import IsStaffRole
+from apps.common.permissions import IsOrderStaff, IsStaffRole
 from apps.common.throttles import CheckoutThrottle
+from apps.notifications.services import notify_new_order, notify_status_change
 from apps.payments.services import build_payment_url
 
 from .models import MeasurementRequest, Order
@@ -42,7 +43,7 @@ class OrdersView(generics.ListAPIView):
                 queryset=Review.objects.filter(user=user),
             ),
         )
-        if user.role in ("manager", "admin"):
+        if user.role in ("employee", "manager", "admin"):
             return qs
         return qs.filter(user=user)
 
@@ -70,6 +71,8 @@ class OrdersView(generics.ListAPIView):
             payment_provider=provider,
         )
 
+        notify_new_order(order)
+
         payload = OrderSerializer(order, context={"request": request}).data
         if provider:
             payload["payment_url"] = build_payment_url(order, provider)
@@ -92,7 +95,7 @@ class OrderDetail(generics.RetrieveAPIView):
                 queryset=Review.objects.filter(user=user),
             ),
         )
-        if user.role in ("manager", "admin"):
+        if user.role in ("employee", "manager", "admin"):
             return qs
         return qs.filter(user=user)
 
@@ -102,7 +105,8 @@ class OrderCancelView(APIView):
 
     def post(self, request, order_number):
         user = request.user
-        qs = Order.objects.all() if user.role == "admin" else Order.objects.filter(user=user)
+        staff = user.role in ("employee", "manager", "admin")
+        qs = Order.objects.all() if staff else Order.objects.filter(user=user)
         order = generics.get_object_or_404(qs, order_number=order_number)
         if order.status not in ("pending", "paid"):
             raise BusinessError("Bu buyurtmani bekor qilib bo'lmaydi.")
@@ -113,14 +117,14 @@ class OrderCancelView(APIView):
 
 class AdminOrderList(generics.ListAPIView):
     serializer_class = AdminOrderRowSerializer
-    permission_classes = [IsStaffRole]
+    permission_classes = [IsOrderStaff]
     queryset = Order.objects.select_related("user").prefetch_related("items")
     filterset_fields = ["status", "payment_status"]
     search_fields = ["order_number", "user__phone"]
 
 
 class AdminOrderUpdate(APIView):
-    permission_classes = [IsStaffRole]
+    permission_classes = [IsOrderStaff]
 
     def get(self, request, order_number):
         order = generics.get_object_or_404(
@@ -136,10 +140,12 @@ class AdminOrderUpdate(APIView):
         serializer = OrderStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_status = serializer.validated_data["status"]
-        if not can_transition(order.status, new_status):
+        old_status = order.status
+        if not can_transition(old_status, new_status):
             raise BusinessError(f"'{order.status}' dan '{new_status}' ga o'tib bo'lmaydi.")
         order.status = new_status
         order.save(update_fields=["status", "updated_at"])
+        notify_status_change(order, old_status, new_status)
         return Response(OrderSerializer(order, context={"request": request}).data)
 
 

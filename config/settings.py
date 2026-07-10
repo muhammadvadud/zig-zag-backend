@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.payments",
     "apps.ai",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -353,6 +354,7 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     _nav_item("Audit jurnali", "common_auditlog", "history"),
+                    _nav_item("Bildirishnomalar", "notifications_notification", "notifications"),
                 ],
             },
         ],
@@ -373,6 +375,13 @@ OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
 OTP_REQUEST_COOLDOWN = env.int("OTP_REQUEST_COOLDOWN", default=30)
 OTP_DEBUG_RETURN_CODE = env.bool("OTP_DEBUG_RETURN_CODE", default=False)
 SMS_PROVIDER = env("SMS_PROVIDER", default="")
+SMS_API_KEY = env("SMS_API_KEY", default="")
+SMS_SENDER = env("SMS_SENDER", default="")
+
+# --------------------------------------------------------------------------- #
+# Notifications (Telegram bot — xodim/menejer/admin bildirishnomalari)
+# --------------------------------------------------------------------------- #
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 
 # --------------------------------------------------------------------------- #
 # AI
