@@ -27,8 +27,14 @@ def can_transition(current, new):
 
 def generate_order_number():
     year = datetime.now().year
+    # select_for_update: without a row lock two concurrent checkouts can both
+    # read the same "last" order and compute the same seq, then collide on the
+    # order_number unique constraint (IntegrityError -> 500). The caller always
+    # wraps this in @transaction.atomic, so the lock is held only for the
+    # duration of create_order_from_cart and is released at commit.
     last = (
-        Order.objects.filter(order_number__startswith=f"ZZ-{year}-")
+        Order.objects.select_for_update()
+        .filter(order_number__startswith=f"ZZ-{year}-")
         .order_by("-id")
         .first()
     )
@@ -63,8 +69,15 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
     subtotal = 0
     for item in items:
         variant = ProductVariant.objects.select_related("product").get(pk=item.variant_id)
-        # Buyurtmaga qarab ishlab chiqariladi — ombor (stok) tekshiruvi yo'q.
         product = variant.product
+        # Savatga qo'shilgandan keyin mahsulot/variant sotuvdan olib tashlangan
+        # yoki soft-delete qilingan bo'lishi mumkin — checkout paytida qayta
+        # tekshiramiz, aks holda mijoz endi mavjud bo'lmagan mahsulotni sotib
+        # olib qo'yishi mumkin edi.
+        if variant.is_deleted or not variant.is_active or product.is_deleted or not product.is_active:
+            raise BusinessError(
+                f"“{product.name_uz}” endi mavjud emas — savatdan olib tashlang va qayta urinib ko'ring."
+            )
 
         # Prices are taken from the server-side computation, never the client.
         unit_price = item.unit_price + item.service_cost
