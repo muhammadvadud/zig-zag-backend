@@ -6,6 +6,7 @@ from .stats_views import (
     OverviewStats,
     PaymentsStats,
     PendingReviewsStats,
+    ProductStatsList,
     RecentMeasurementsStats,
     RecentOrdersStats,
     SalesStats,
@@ -22,6 +23,7 @@ urlpatterns = [
         name="admin-stats-orders-by-status",
     ),
     path("admin/stats/top-products/", TopProductsStats.as_view(), name="admin-stats-top-products"),
+    path("admin/stats/products/", ProductStatsList.as_view(), name="admin-stats-products"),
     path(
         "admin/stats/top-categories/",
         TopCategoriesStats.as_view(),

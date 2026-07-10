@@ -207,6 +207,26 @@ class ProductVariant(BaseModel):
         return self.product.apply_discount(self.price)
 
 
+class ProductView(BaseModel):
+    """Mahsulot ko'rishlarining vaqt bo'yicha jurnali (statistika: 7/30 kunlik trend).
+
+    ``Product.views_count`` — umumiy (hamma vaqt) hisoblagich; bu model esa har bir
+    ko'rishni sana bilan qayd etadi, shu bois admin panelda davr bo'yicha (7/30 kun)
+    ko'rishlar sonini hisoblash mumkin. Bir xil sessiyadan qayta-qayta yozilmasligi
+    uchun ProductDetail.retrieve dagi sessiya throttle bilan birga ishlaydi.
+    """
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="view_logs")
+    session_key = models.CharField(max_length=64, blank=True, default="")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="product_views"
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["product", "created_at"])]
+
+
 class ProductImage(BaseModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
     color = models.ForeignKey(
