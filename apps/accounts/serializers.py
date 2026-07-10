@@ -52,9 +52,17 @@ class ProfileSerializer(serializers.ModelSerializer):
             "role",
             "language",
             "is_phone_verified",
+            "telegram_enabled",
             "date_joined",
         )
-        read_only_fields = ("id", "phone", "role", "is_phone_verified", "date_joined")
+        read_only_fields = (
+            "id",
+            "phone",
+            "role",
+            "is_phone_verified",
+            "telegram_enabled",
+            "date_joined",
+        )
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -69,9 +77,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "is_active",
             "is_phone_verified",
             "language",
+            "telegram_enabled",
             "date_joined",
         )
-        read_only_fields = ("id", "phone", "date_joined", "is_phone_verified")
+        read_only_fields = ("id", "phone", "date_joined", "is_phone_verified", "telegram_enabled")
 
     def validate_role(self, value):
         # Admin — dev-only, operatsion ish qilmaydi. Faqat admin o'zi boshqa
