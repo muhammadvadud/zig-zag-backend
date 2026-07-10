@@ -393,7 +393,14 @@ class FavoriteList(generics.ListCreateAPIView):
     def get_queryset(self):
         return Favorite.objects.filter(user=self.request.user).select_related(
             "product__category"
-        ).prefetch_related("product__images", "product__variants__color")
+        ).prefetch_related(
+            "product__images",
+            "product__variants",
+            "product__materials",
+            "product__styles",
+            "product__rooms",
+            "product__badges",
+        )
 
     def create(self, request, *args, **kwargs):
         product_id = request.data.get("product_id")
