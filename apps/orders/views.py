@@ -1,4 +1,4 @@
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -121,6 +121,45 @@ class AdminOrderList(generics.ListAPIView):
     queryset = Order.objects.select_related("user").prefetch_related("items")
     filterset_fields = ["status", "payment_status"]
     search_fields = ["order_number", "user__phone"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        status_in = self.request.query_params.get("status__in")
+        if status_in:
+            values = [v.strip() for v in status_in.split(",") if v.strip()]
+            if values:
+                qs = qs.filter(status__in=values)
+        return qs
+
+    def filter_queryset(self, queryset):
+        status_in = self.request.query_params.get("status__in")
+        if not status_in:
+            return super().filter_queryset(queryset)
+
+        # status__in already narrowed the queryset in get_queryset(). If the
+        # exact `status` param was also supplied, don't let DjangoFilterBackend
+        # AND it back in — status__in takes priority.
+        original_get = self.request._request.GET
+        if "status" in original_get:
+            stripped = original_get.copy()
+            stripped.pop("status", None)
+            self.request._request.GET = stripped
+            try:
+                return super().filter_queryset(queryset)
+            finally:
+                self.request._request.GET = original_get
+        return super().filter_queryset(queryset)
+
+
+class AdminOrderStatusCounts(APIView):
+    permission_classes = [IsOrderStaff]
+
+    def get(self, request):
+        counts = {status_value: 0 for status_value, _ in Order.STATUS_CHOICES}
+        rows = Order.objects.values("status").annotate(n=Count("id"))
+        for row in rows:
+            counts[row["status"]] = row["n"]
+        return Response(counts)
 
 
 class AdminOrderUpdate(APIView):
