@@ -26,6 +26,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from rest_framework import generics, serializers
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -472,6 +473,38 @@ def _top_variants_for(products):
     return top
 
 
+class AliasOrderingFilter(OrderingFilter):
+    """OrderingFilter that accepts public *aliases* in ``?ordering=`` and maps
+    them to the real (annotated) queryset field names before ordering.
+
+    Dashboard API kontrakti alias yuboradi (``views, sales, revenue, ...``),
+    lekin queryset'dagi haqiqiy maydonlar boshqacha nomlanadi (``views_count,
+    sold_qty, ...``). DRF'ning standart ``OrderingFilter``i ``ordering_fields``
+    tuple'ining BIRINCHI elementini (haqiqiy maydon nomini) qabul qiladi, alias
+    (ikkinchi element) esa faqat ko'rsatish uchun — shuning uchun alias bilan
+    kelgan ``?ordering=`` jim rad etilib, default'ga tushib qolardi. Bu filtr
+    alias'ni haqiqiy maydonga o'giradi. View ``ordering_alias_map`` e'lon qiladi.
+    """
+
+    def get_ordering(self, request, queryset, view):
+        params = request.query_params.get(self.ordering_param)
+        alias_map = getattr(view, "ordering_alias_map", {}) or {}
+        if params:
+            ordering = []
+            for term in params.split(","):
+                term = term.strip()
+                if not term:
+                    continue
+                desc = term.startswith("-")
+                alias = term[1:] if desc else term
+                real = alias_map.get(alias)
+                if real:
+                    ordering.append(("-" if desc else "") + real)
+            if ordering:
+                return ordering
+        return self.get_default_ordering(view)
+
+
 class ProductStatsSerializer(serializers.Serializer):
     """Row shape for GET /admin/stats/products/ — see annotations on the queryset
     in ProductStatsList.get_queryset for where every number comes from."""
@@ -530,15 +563,17 @@ class ProductStatsList(generics.ListAPIView):
     serializer_class = ProductStatsSerializer
     permission_classes = [IsStaffRole]
     pagination_class = StandardPagination
+    filter_backends = [SearchFilter, AliasOrderingFilter]
     search_fields = ["name_uz", "name_ru"]
-    ordering_fields = [
-        ("views_count", "views"),
-        ("sold_qty", "sales"),
-        ("revenue", "revenue"),
-        ("favorites_count", "favorites"),
-        ("rating_avg", "rating"),
-        ("conversion", "conversion"),
-    ]
+    # Dashboard yuboradigan alias -> queryset'dagi haqiqiy annotatsiya maydoni.
+    ordering_alias_map = {
+        "views": "views_count",
+        "sales": "sold_qty",
+        "revenue": "revenue",
+        "favorites": "favorites_count",
+        "rating": "rating_avg",
+        "conversion": "conversion",
+    }
     ordering = ["-views_count"]
 
     def get_queryset(self):
