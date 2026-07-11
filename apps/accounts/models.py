@@ -85,7 +85,7 @@ class Address(BaseModel):
     region = models.CharField(max_length=100)
     city = models.CharField(max_length=100)
     street = models.CharField(max_length=255)
-    home = models.CharField(max_length=100)
+    home = models.CharField(max_length=100, blank=True)
     landmark = models.CharField(max_length=255, blank=True)
     is_default = models.BooleanField(default=False)
 
