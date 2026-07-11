@@ -124,6 +124,12 @@ class AdminOrderList(generics.ListAPIView):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # Xodim faqat to'lovi tasdiqlangan buyurtmalarni ko'radi — u tikuv/
+        # jo'natish oqimi bilan shug'ullanadi, to'lanmagan buyurtma unga
+        # tegishli emas. Manager/admin operatsion nazorat uchun hammasini
+        # ko'radi (to'lanmaganlarni ham kuzatishi kerak).
+        if self.request.user.role == "employee":
+            qs = qs.filter(payment_status="paid")
         status_in = self.request.query_params.get("status__in")
         if status_in:
             values = [v.strip() for v in status_in.split(",") if v.strip()]
@@ -156,7 +162,10 @@ class AdminOrderStatusCounts(APIView):
 
     def get(self, request):
         counts = {status_value: 0 for status_value, _ in Order.STATUS_CHOICES}
-        rows = Order.objects.values("status").annotate(n=Count("id"))
+        qs = Order.objects.all()
+        if request.user.role == "employee":
+            qs = qs.filter(payment_status="paid")
+        rows = qs.values("status").annotate(n=Count("id"))
         for row in rows:
             counts[row["status"]] = row["n"]
         return Response(counts)

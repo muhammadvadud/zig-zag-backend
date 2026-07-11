@@ -139,6 +139,12 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TIME_LIMIT = 300
+CELERY_BEAT_SCHEDULE = {
+    "cancel-unpaid-orders": {
+        "task": "apps.orders.tasks.cancel_unpaid_orders",
+        "schedule": 1800.0,  # har 30 daqiqada
+    },
+}
 
 # --------------------------------------------------------------------------- #
 # Password validation

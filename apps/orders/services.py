@@ -8,8 +8,12 @@ from apps.common.exceptions import BusinessError
 from .models import Order, OrderItem
 
 # Allowed forward status transitions (the order lifecycle is one-directional).
+# "pending" -> "paid" bu yerda YO'Q ataylab: to'lov holatini faqat haqiqiy
+# to'lov webhook'lari (apps/payments/click.py, payme.py) o'zgartiradi, xodim/
+# manager qo'lda "to'landi" deb belgilay olmaydi. Shu sabab "processing" ham
+# yo'q — to'lovsiz buyurtmani ishga tushirib bo'lmaydi.
 STATUS_FLOW = {
-    "pending": {"paid", "processing", "cancelled"},
+    "pending": {"cancelled"},
     "paid": {"processing", "measuring", "cancelled", "refunded"},
     "processing": {"measuring", "sewing", "shipped", "cancelled"},
     "measuring": {"sewing", "cancelled"},
