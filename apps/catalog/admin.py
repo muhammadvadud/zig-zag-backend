@@ -13,6 +13,7 @@ from .models import (
     Color,
     Favorite,
     HeroContent,
+    Material,
     Product,
     ProductImage,
     ProductVariant,
@@ -64,6 +65,14 @@ class RoomAdmin(TranslationAdmin, ModelAdmin):
     prepopulated_fields = {"slug": ("name_uz",)}
 
 
+@admin.register(Material)
+class MaterialAdmin(TranslationAdmin, ModelAdmin):
+    list_display = ("slug", "name_uz", "sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("slug", "name_uz", "name_ru")
+    prepopulated_fields = {"slug": ("name_uz",)}
+
+
 @admin.register(Tailor)
 class TailorAdmin(TranslationAdmin, ModelAdmin):
     list_display = ("name_uz", "specialty_uz", "rating", "orders_count", "sort_order", "is_active")
@@ -84,7 +93,7 @@ class ProductAdmin(TranslationAdmin, ModelAdmin):
     list_filter = ("category", "tailor", "is_new", "size_mode", "is_active", "is_deleted")
     search_fields = ("slug", "name_uz", "name_ru")
     autocomplete_fields = ("tailor",)
-    filter_horizontal = ("badges", "styles", "rooms", "colors")
+    filter_horizontal = ("badges", "styles", "rooms", "materials", "colors")
     prepopulated_fields = {"slug": ("name_uz",)}
     inlines = [ProductVariantInline, ProductImageInline]
 

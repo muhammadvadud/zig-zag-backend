@@ -8,19 +8,36 @@ without parsing strings.
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Avg, Count, F, Sum
-from django.db.models.functions import TruncDate
+from django.db.models import (
+    Avg,
+    Case,
+    Count,
+    DecimalField,
+    ExpressionWrapper,
+    F,
+    FloatField,
+    IntegerField,
+    OuterRef,
+    Subquery,
+    Sum,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
+from rest_framework import generics, serializers
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.ai.models import AIConversation, AIImageGeneration, AIMessage, AIUsageQuota
-from apps.catalog.models import Review
+from apps.catalog.models import Favorite, Product, ProductView, Review
 from apps.orders.models import MeasurementRequest, Order, OrderItem
 from apps.payments.models import Payment
 
-from .permissions import IsAdminRole
+from .pagination import StandardPagination
+from .permissions import IsStaffRole
 
 STATUS_LABELS = {
     "pending": "Kutilmoqda",
@@ -35,6 +52,14 @@ STATUS_LABELS = {
 }
 
 PENDING_STATUSES = ["pending", "processing", "measuring", "sewing"]
+
+# "Sotilgan" deb hisoblanadigan holatlar — to'lov qabul qilingandan keyingi
+# barcha bosqichlar (pending/cancelled/refunded bundan mustasno). `Order.status`
+# vaqtning bir nuqtasidagi holat (tarix emas) bo'lgani uchun faqat 'paid'ni emas,
+# undan keyingi ishlab chiqarish bosqichlarini ham qo'shish kerak — aks holda
+# "processing"/"sewing" holatidagi (allaqachon to'langan) buyurtmalar tushum va
+# sotuv statistikasidan tushib qolib, raqamlar kamroq chiqadi.
+SOLD_STATUSES = ["paid", "processing", "measuring", "sewing", "shipped", "completed"]
 
 
 def _num(value):
@@ -56,7 +81,7 @@ def _pct(current, previous):
 
 
 class AdminStatsBase(APIView):
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
 
 
 class OverviewStats(AdminStatsBase):
@@ -99,6 +124,13 @@ class OverviewStats(AdminStatsBase):
         denom = orders_total + active_carts
         conversion = round(orders_total / denom * 100, 1) if denom else 0.0
 
+        # Umumiy (davrga bog'liq bo'lmagan) raqamlar — mahsulot statistikasi
+        # sahifasining yuqori KPI qatori uchun.
+        total_products = Product.objects.filter(is_deleted=False).count()
+        total_views = Product.objects.aggregate(v=Sum("views_count"))["v"]
+        total_revenue = Order.objects.filter(status__in=SOLD_STATUSES).aggregate(v=Sum("total"))["v"]
+        total_customers = User.objects.filter(role="customer").count()
+
         return Response(
             {
                 "today_sales": _num(today_sales),
@@ -110,6 +142,12 @@ class OverviewStats(AdminStatsBase):
                 "pending_orders": pending_orders,
                 "measurement_requests": measurement_requests,
                 "conversion": conversion,
+                # Katalog bo'yicha umumiy KPI (Mahsulot statistikasi sahifasi uchun):
+                "products": total_products,
+                "total_views": _num(total_views),
+                "total_orders": orders_total,
+                "total_revenue": _num(total_revenue),
+                "total_customers": total_customers,
                 "deltas": {
                     "today_sales_pct": _pct(today_sales, yest_sales),
                     "month_sales_pct": _pct(month_sales, prev_month_sales),
@@ -394,3 +432,229 @@ class RecentMeasurementsStats(AdminStatsBase):
             for m in rows
         ]
         return Response({"items": items})
+
+
+# --------------------------------------------------------------------------- #
+# Per-product statistics (views / sales / revenue / conversion)
+# --------------------------------------------------------------------------- #
+
+
+def _top_variants_for(products):
+    """product_id -> {"name", "sold_qty"} for the best-selling variant of each
+    product (or absent if the product never sold). One query for the whole page."""
+
+    product_ids = [p.id for p in products]
+    if not product_ids:
+        return {}
+    rows = (
+        OrderItem.objects.filter(
+            variant__product_id__in=product_ids, order__status__in=SOLD_STATUSES
+        )
+        .values(
+            "variant__product_id",
+            "variant_id",
+            "variant__name",
+            "variant__width_cm",
+            "variant__height_cm",
+        )
+        .annotate(qty=Sum("quantity"))
+        .order_by("variant__product_id", "-qty")
+    )
+    top = {}
+    for row in rows:
+        pid = row["variant__product_id"]
+        if pid in top:
+            continue  # birinchi qator = shu mahsulot uchun eng ko'p sotilgan variant
+        width, height = row["variant__width_cm"], row["variant__height_cm"]
+        name = row["variant__name"] or (
+            f"{width}×{height} sm" if width and height else f"#{row['variant_id']}"
+        )
+        top[pid] = {"name": name, "sold_qty": row["qty"] or 0}
+    return top
+
+
+class AliasOrderingFilter(OrderingFilter):
+    """OrderingFilter that accepts public *aliases* in ``?ordering=`` and maps
+    them to the real (annotated) queryset field names before ordering.
+
+    Dashboard API kontrakti alias yuboradi (``views, sales, revenue, ...``),
+    lekin queryset'dagi haqiqiy maydonlar boshqacha nomlanadi (``views_count,
+    sold_qty, ...``). DRF'ning standart ``OrderingFilter``i ``ordering_fields``
+    tuple'ining BIRINCHI elementini (haqiqiy maydon nomini) qabul qiladi, alias
+    (ikkinchi element) esa faqat ko'rsatish uchun — shuning uchun alias bilan
+    kelgan ``?ordering=`` jim rad etilib, default'ga tushib qolardi. Bu filtr
+    alias'ni haqiqiy maydonga o'giradi. View ``ordering_alias_map`` e'lon qiladi.
+    """
+
+    def get_ordering(self, request, queryset, view):
+        params = request.query_params.get(self.ordering_param)
+        alias_map = getattr(view, "ordering_alias_map", {}) or {}
+        if params:
+            ordering = []
+            for term in params.split(","):
+                term = term.strip()
+                if not term:
+                    continue
+                desc = term.startswith("-")
+                alias = term[1:] if desc else term
+                real = alias_map.get(alias)
+                if real:
+                    ordering.append(("-" if desc else "") + real)
+            if ordering:
+                return ordering
+        return self.get_default_ordering(view)
+
+
+class ProductStatsSerializer(serializers.Serializer):
+    """Row shape for GET /admin/stats/products/ — see annotations on the queryset
+    in ProductStatsList.get_queryset for where every number comes from."""
+
+    id = serializers.IntegerField()
+    slug = serializers.CharField()
+    name = serializers.CharField()
+    main_image = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+    views_count = serializers.IntegerField()
+    views_7d = serializers.IntegerField()
+    views_30d = serializers.IntegerField()
+    favorites_count = serializers.IntegerField()
+    orders_count = serializers.IntegerField()
+    sold_qty = serializers.IntegerField()
+    revenue = serializers.SerializerMethodField()
+    reviews_count = serializers.IntegerField()
+    rating_avg = serializers.DecimalField(max_digits=3, decimal_places=2)
+    conversion = serializers.SerializerMethodField()
+    top_variant = serializers.SerializerMethodField()
+
+    def get_revenue(self, obj):
+        return _num(obj.revenue)
+
+    def get_conversion(self, obj):
+        # 0..1 nisbat (front foizga o'zi ko'paytiradi) — masalan 0.0834 = 8.34%.
+        return round(float(obj.conversion or 0), 4)
+
+    def get_category(self, obj):
+        return obj.category.slug if obj.category_id else None
+
+    def get_main_image(self, obj):
+        imgs = list(obj.images.all())
+        main = next((i for i in imgs if i.is_main), None) or (imgs[0] if imgs else None)
+        if not main:
+            return None
+        request = self.context.get("request")
+        url = main.image.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_top_variant(self, obj):
+        top_variants = self.context.get("top_variants") or {}
+        return top_variants.get(obj.id)
+
+
+class ProductStatsList(generics.ListAPIView):
+    """Paginated per-product analytics table for the admin dashboard.
+
+    ?category=<slug>  — filter by category
+    ?search=<text>    — matches product name (uz/ru)
+    ?ordering=<field>  where field in
+        views | sales | revenue | favorites | rating | conversion
+        (prefix with "-" for descending, e.g. ?ordering=-revenue)
+    """
+
+    serializer_class = ProductStatsSerializer
+    permission_classes = [IsStaffRole]
+    pagination_class = StandardPagination
+    filter_backends = [SearchFilter, AliasOrderingFilter]
+    search_fields = ["name_uz", "name_ru"]
+    # Dashboard yuboradigan alias -> queryset'dagi haqiqiy annotatsiya maydoni.
+    ordering_alias_map = {
+        "views": "views_count",
+        "sales": "sold_qty",
+        "revenue": "revenue",
+        "favorites": "favorites_count",
+        "rating": "rating_avg",
+        "conversion": "conversion",
+    }
+    ordering = ["-views_count"]
+
+    def get_queryset(self):
+        now = timezone.now()
+        d7 = now - timedelta(days=7)
+        d30 = now - timedelta(days=30)
+
+        # Product has several independent reverse relations (order items,
+        # favorites, review, view logs). Aggregating them together in a single
+        # annotate() call would JOIN all of them at once and multiply rows across
+        # relations, inflating every Count/Sum (Django's well-known aggregation
+        # "fan-out" problem — see the ORM docs' "combining multiple aggregations"
+        # warning). Each metric is therefore computed as its own correlated
+        # Subquery so the numbers stay correct regardless of how many rows the
+        # other relations have.
+        sold_items = OrderItem.objects.filter(
+            variant__product=OuterRef("pk"), order__status__in=SOLD_STATUSES
+        )
+        sold_qty_sq = sold_items.values("variant__product").annotate(v=Sum("quantity")).values("v")
+        revenue_sq = sold_items.values("variant__product").annotate(v=Sum("line_total")).values("v")
+        orders_count_sq = (
+            sold_items.values("variant__product").annotate(v=Count("order", distinct=True)).values("v")
+        )
+        favorites_sq = (
+            Favorite.objects.filter(product=OuterRef("pk"))
+            .values("product").annotate(v=Count("id")).values("v")
+        )
+        reviews_sq = (
+            Review.objects.filter(product=OuterRef("pk"), is_published=True)
+            .values("product").annotate(v=Count("id")).values("v")
+        )
+        views7_sq = (
+            ProductView.objects.filter(product=OuterRef("pk"), created_at__gte=d7)
+            .values("product").annotate(v=Count("id")).values("v")
+        )
+        views30_sq = (
+            ProductView.objects.filter(product=OuterRef("pk"), created_at__gte=d30)
+            .values("product").annotate(v=Count("id")).values("v")
+        )
+
+        qs = (
+            Product.objects.filter(is_deleted=False)
+            .select_related("category")
+            .prefetch_related("images")
+            .annotate(
+                sold_qty=Coalesce(Subquery(sold_qty_sq, output_field=IntegerField()), 0),
+                revenue=Coalesce(
+                    Subquery(revenue_sq, output_field=DecimalField(max_digits=14, decimal_places=2)),
+                    Value(Decimal("0")),
+                ),
+                orders_count=Coalesce(Subquery(orders_count_sq, output_field=IntegerField()), 0),
+                favorites_count=Coalesce(Subquery(favorites_sq, output_field=IntegerField()), 0),
+                reviews_count=Coalesce(Subquery(reviews_sq, output_field=IntegerField()), 0),
+                views_7d=Coalesce(Subquery(views7_sq, output_field=IntegerField()), 0),
+                views_30d=Coalesce(Subquery(views30_sq, output_field=IntegerField()), 0),
+            )
+            .annotate(
+                # orders_count / views_count as a ratio, guarded against divide-by-zero.
+                conversion=Case(
+                    When(views_count=0, then=Value(0.0)),
+                    default=ExpressionWrapper(
+                        F("orders_count") * 1.0 / F("views_count"), output_field=FloatField()
+                    ),
+                    output_field=FloatField(),
+                )
+            )
+        )
+
+        category_slug = self.request.query_params.get("category")
+        if category_slug:
+            qs = qs.filter(category__slug=category_slug)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        products = page if page is not None else list(queryset)
+        top_variants = _top_variants_for(products)
+        serializer = self.get_serializer(
+            products, many=True, context={"request": request, "top_variants": top_variants}
+        )
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)

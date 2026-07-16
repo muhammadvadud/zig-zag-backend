@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.cart.services import merge_session_cart
 
-from apps.common.permissions import IsAdminRole
+from apps.common.permissions import IsStaffRole
 
 from .models import Address, User
 from .serializers import (
@@ -148,7 +148,7 @@ class AddressDetail(generics.RetrieveUpdateDestroyAPIView):
 
 class AdminUserList(generics.ListAPIView):
     serializer_class = AdminUserSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = User.objects.all().order_by("-date_joined")
     filterset_fields = ["role", "is_active"]
     search_fields = ["phone", "full_name", "email"]
@@ -156,5 +156,5 @@ class AdminUserList(generics.ListAPIView):
 
 class AdminUserDetail(generics.RetrieveUpdateAPIView):
     serializer_class = AdminUserSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = User.objects.all()

@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.common.pagination import StandardPagination
-from apps.common.permissions import IsAdminRole, IsStaffRole
+from apps.common.permissions import IsStaffRole
 from apps.orders.models import OrderItem
 
 from .filters import ProductFilter
@@ -18,9 +18,11 @@ from .models import (
     Color,
     Favorite,
     HeroContent,
+    Material,
     Product,
     ProductImage,
     ProductVariant,
+    ProductView,
     Review,
     Room,
     Style,
@@ -36,6 +38,7 @@ from .serializers import (
     AdminColorSerializer,
     AdminFAQSerializer,
     AdminHeroContentSerializer,
+    AdminMaterialSerializer,
     AdminProductImageSerializer,
     AdminProductSerializer,
     AdminProductVariantSerializer,
@@ -49,6 +52,7 @@ from .serializers import (
     FAQSerializer,
     FavoriteSerializer,
     HeroContentSerializer,
+    MaterialSerializer,
     TailorSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
@@ -76,7 +80,7 @@ def _product_queryset():
     return (
         Product.objects.filter(is_active=True, is_deleted=False)
         .select_related("category", "tailor")
-        .prefetch_related("images", "variants", "styles", "rooms", "colors", "badges")
+        .prefetch_related("images", "variants", "styles", "rooms", "materials", "colors", "badges")
         .annotate(
             reviews_count=Count(
                 "reviews", filter=Q(reviews__is_published=True), distinct=True
@@ -89,7 +93,7 @@ class ProductList(generics.ListAPIView):
     serializer_class = ProductListSerializer
     permission_classes = [AllowAny]
     filterset_class = ProductFilter
-    search_fields = ["name_uz", "name_ru", "material"]
+    search_fields = ["name_uz", "name_ru", "materials__name_uz", "materials__name_ru"]
     ordering_fields = ["min_price", "created_at", "rating_avg", "views_count"]
     ordering = ["-created_at"]
 
@@ -115,6 +119,15 @@ class ProductDetail(generics.RetrieveAPIView):
         if not request.session.get(seen_key):
             Product.objects.filter(pk=instance.pk).update(views_count=F("views_count") + 1)
             request.session[seen_key] = True
+            # Har bir chinakam (throttle'dan o'tgan) tashrif vaqt bo'yicha ham
+            # qayd etiladi — admin statistikasida 7/30 kunlik trend uchun.
+            if not request.session.session_key:
+                request.session.save()
+            ProductView.objects.create(
+                product=instance,
+                session_key=request.session.session_key or "",
+                user=request.user if request.user.is_authenticated else None,
+            )
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -126,7 +139,7 @@ class ProductFacets(generics.GenericAPIView):
 
     permission_classes = [AllowAny]
     filterset_class = ProductFilter
-    search_fields = ["name_uz", "name_ru", "material"]
+    search_fields = ["name_uz", "name_ru", "materials__name_uz", "materials__name_ru"]
     pagination_class = None
 
     def get_queryset(self):
@@ -142,9 +155,10 @@ class ProductFacets(generics.GenericAPIView):
             if r["category__slug"]
         ]
         materials = [
-            {"value": r["material"], "count": r["count"]}
-            for r in qs.exclude(material="").values("material").annotate(count=Count("id")).order_by("-count")
-            if r["material"]
+            {"slug": m.slug, "name": m.name, "count": m.count}
+            for m in Material.objects.filter(products__in=ids)
+            .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
+            .order_by("sort_order", "name")
         ]
         styles = list(
             Style.objects.filter(products__in=ids)
@@ -310,6 +324,13 @@ class RoomList(generics.ListAPIView):
     queryset = Room.objects.filter(is_active=True)
 
 
+class MaterialList(generics.ListAPIView):
+    serializer_class = MaterialSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+    queryset = Material.objects.filter(is_active=True)
+
+
 class BannerList(generics.ListAPIView):
     serializer_class = BannerSerializer
     permission_classes = [AllowAny]
@@ -372,7 +393,14 @@ class FavoriteList(generics.ListCreateAPIView):
     def get_queryset(self):
         return Favorite.objects.filter(user=self.request.user).select_related(
             "product__category"
-        ).prefetch_related("product__images", "product__variants__color")
+        ).prefetch_related(
+            "product__images",
+            "product__variants",
+            "product__materials",
+            "product__styles",
+            "product__rooms",
+            "product__badges",
+        )
 
     def create(self, request, *args, **kwargs):
         product_id = request.data.get("product_id")
@@ -403,7 +431,7 @@ class FavoriteDelete(generics.DestroyAPIView):
 class AdminProductList(generics.ListCreateAPIView):
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffRole]
-    queryset = Product.objects.filter(is_deleted=False).prefetch_related("badges")
+    queryset = Product.objects.filter(is_deleted=False).prefetch_related("badges", "images")
     filterset_fields = ["category", "is_active", "is_new"]
     search_fields = ["slug", "name_uz", "name_ru"]
 
@@ -422,7 +450,7 @@ class AdminProductDetail(generics.RetrieveUpdateDestroyAPIView):
 
 class AdminTailorList(generics.ListCreateAPIView):
     serializer_class = AdminTailorSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = StandardPagination
     queryset = Tailor.objects.all()
     search_fields = ["name_uz", "name_ru", "specialty_uz", "specialty_ru"]
@@ -430,13 +458,13 @@ class AdminTailorList(generics.ListCreateAPIView):
 
 class AdminTailorDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminTailorSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Tailor.objects.all()
 
 
 class AdminReviewList(generics.ListAPIView):
     serializer_class = AdminReviewSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = StandardPagination
     queryset = Review.objects.select_related("product", "user")
     filterset_fields = ["is_published"]
@@ -445,7 +473,7 @@ class AdminReviewList(generics.ListAPIView):
 
 class AdminReviewDetail(generics.RetrieveUpdateAPIView):
     serializer_class = AdminReviewSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Review.objects.select_related("product", "user")
 
 
@@ -456,118 +484,131 @@ class AdminReviewDetail(generics.RetrieveUpdateAPIView):
 
 class AdminCategoryList(generics.ListCreateAPIView):
     serializer_class = AdminCategorySerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = Category.objects.all()
 
 
 class AdminCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminCategorySerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Category.objects.all()
 
 
 class AdminStyleList(generics.ListCreateAPIView):
     serializer_class = AdminStyleSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = Style.objects.all()
 
 
 class AdminStyleDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminStyleSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Style.objects.all()
 
 
 class AdminRoomList(generics.ListCreateAPIView):
     serializer_class = AdminRoomSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = Room.objects.all()
 
 
 class AdminRoomDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminRoomSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Room.objects.all()
+
+
+class AdminMaterialList(generics.ListCreateAPIView):
+    serializer_class = AdminMaterialSerializer
+    permission_classes = [IsStaffRole]
+    pagination_class = None
+    queryset = Material.objects.annotate(products_count=Count("products"))
+
+
+class AdminMaterialDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AdminMaterialSerializer
+    permission_classes = [IsStaffRole]
+    queryset = Material.objects.annotate(products_count=Count("products"))
 
 
 class AdminColorList(generics.ListCreateAPIView):
     serializer_class = AdminColorSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = Color.objects.all()
 
 
 class AdminColorDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminColorSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Color.objects.all()
 
 
 class AdminBadgeList(generics.ListCreateAPIView):
     serializer_class = AdminBadgeSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = Badge.objects.all()
 
 
 class AdminBadgeDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminBadgeSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Badge.objects.all()
 
 
 class AdminCollectionList(generics.ListCreateAPIView):
     serializer_class = AdminCollectionSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = Collection.objects.all()
 
 
 class AdminCollectionDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminCollectionSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Collection.objects.all()
 
 
 class AdminBannerList(generics.ListCreateAPIView):
     serializer_class = AdminBannerSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = Banner.objects.all()
 
 
 class AdminBannerDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminBannerSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = Banner.objects.all()
 
 
 class AdminFAQList(generics.ListCreateAPIView):
     serializer_class = AdminFAQSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = FAQ.objects.all()
 
 
 class AdminFAQDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminFAQSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = FAQ.objects.all()
 
 
 class AdminHeroList(generics.ListCreateAPIView):
     serializer_class = AdminHeroContentSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     pagination_class = None
     queryset = HeroContent.objects.all()
 
 
 class AdminHeroDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminHeroContentSerializer
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsStaffRole]
     queryset = HeroContent.objects.all()
 
 

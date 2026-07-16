@@ -1,4 +1,4 @@
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,8 +9,9 @@ from apps.catalog.models import Review
 from apps.accounts.models import Address
 from apps.cart.services import get_or_create_cart
 from apps.common.exceptions import BusinessError
-from apps.common.permissions import IsStaffRole
+from apps.common.permissions import IsOrderStaff, IsStaffRole
 from apps.common.throttles import CheckoutThrottle
+from apps.notifications.services import notify_new_order, notify_status_change
 from apps.payments.services import build_payment_url
 
 from .models import MeasurementRequest, Order
@@ -41,7 +42,7 @@ class OrdersView(generics.ListAPIView):
                 queryset=Review.objects.filter(user=user),
             ),
         )
-        if user.role in ("manager", "admin"):
+        if user.role in ("employee", "manager", "admin"):
             return qs
         return qs.filter(user=user)
 
@@ -72,6 +73,8 @@ class OrdersView(generics.ListAPIView):
             recipient_phone=recipient.get("phone", ""),
         )
 
+        notify_new_order(order)
+
         payload = OrderSerializer(order, context={"request": request}).data
         if provider:
             payload["payment_url"] = build_payment_url(order, provider)
@@ -93,7 +96,7 @@ class OrderDetail(generics.RetrieveAPIView):
                 queryset=Review.objects.filter(user=user),
             ),
         )
-        if user.role in ("manager", "admin"):
+        if user.role in ("employee", "manager", "admin"):
             return qs
         return qs.filter(user=user)
 
@@ -103,7 +106,8 @@ class OrderCancelView(APIView):
 
     def post(self, request, order_number):
         user = request.user
-        qs = Order.objects.all() if user.role == "admin" else Order.objects.filter(user=user)
+        staff = user.role in ("employee", "manager", "admin")
+        qs = Order.objects.all() if staff else Order.objects.filter(user=user)
         order = generics.get_object_or_404(qs, order_number=order_number)
         if order.status not in ("pending", "paid"):
             raise BusinessError("Bu buyurtmani bekor qilib bo'lmaydi.")
@@ -114,14 +118,67 @@ class OrderCancelView(APIView):
 
 class AdminOrderList(generics.ListAPIView):
     serializer_class = AdminOrderRowSerializer
+<<<<<<< HEAD
     permission_classes = [IsStaffRole]
     queryset = Order.objects.select_related("user", "service_tariff").prefetch_related("items")
+=======
+    permission_classes = [IsOrderStaff]
+    queryset = Order.objects.select_related("user").prefetch_related("items")
+>>>>>>> 09dda8fb46872f7c79fccd556b55bd8a451a884a
     filterset_fields = ["status", "payment_status"]
     search_fields = ["order_number", "user__phone"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Xodim faqat to'lovi tasdiqlangan buyurtmalarni ko'radi — u tikuv/
+        # jo'natish oqimi bilan shug'ullanadi, to'lanmagan buyurtma unga
+        # tegishli emas. Manager/admin operatsion nazorat uchun hammasini
+        # ko'radi (to'lanmaganlarni ham kuzatishi kerak).
+        if self.request.user.role == "employee":
+            qs = qs.filter(payment_status="paid")
+        status_in = self.request.query_params.get("status__in")
+        if status_in:
+            values = [v.strip() for v in status_in.split(",") if v.strip()]
+            if values:
+                qs = qs.filter(status__in=values)
+        return qs
+
+    def filter_queryset(self, queryset):
+        status_in = self.request.query_params.get("status__in")
+        if not status_in:
+            return super().filter_queryset(queryset)
+
+        # status__in already narrowed the queryset in get_queryset(). If the
+        # exact `status` param was also supplied, don't let DjangoFilterBackend
+        # AND it back in — status__in takes priority.
+        original_get = self.request._request.GET
+        if "status" in original_get:
+            stripped = original_get.copy()
+            stripped.pop("status", None)
+            self.request._request.GET = stripped
+            try:
+                return super().filter_queryset(queryset)
+            finally:
+                self.request._request.GET = original_get
+        return super().filter_queryset(queryset)
+
+
+class AdminOrderStatusCounts(APIView):
+    permission_classes = [IsOrderStaff]
+
+    def get(self, request):
+        counts = {status_value: 0 for status_value, _ in Order.STATUS_CHOICES}
+        qs = Order.objects.all()
+        if request.user.role == "employee":
+            qs = qs.filter(payment_status="paid")
+        rows = qs.values("status").annotate(n=Count("id"))
+        for row in rows:
+            counts[row["status"]] = row["n"]
+        return Response(counts)
+
 
 class AdminOrderUpdate(APIView):
-    permission_classes = [IsStaffRole]
+    permission_classes = [IsOrderStaff]
 
     def get(self, request, order_number):
         order = generics.get_object_or_404(
@@ -137,10 +194,12 @@ class AdminOrderUpdate(APIView):
         serializer = OrderStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_status = serializer.validated_data["status"]
-        if not can_transition(order.status, new_status):
+        old_status = order.status
+        if not can_transition(old_status, new_status):
             raise BusinessError(f"'{order.status}' dan '{new_status}' ga o'tib bo'lmaydi.")
         order.status = new_status
         order.save(update_fields=["status", "updated_at"])
+        notify_status_change(order, old_status, new_status)
         return Response(OrderSerializer(order, context={"request": request}).data)
 
 

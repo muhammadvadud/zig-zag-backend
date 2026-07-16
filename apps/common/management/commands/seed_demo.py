@@ -19,6 +19,7 @@ from apps.catalog.models import (
     Collection,
     Color,
     HeroContent,
+    Material,
     Product,
     ProductImage,
     ProductVariant,
@@ -229,6 +230,20 @@ class Command(BaseCommand):
             )
             cat_objs[slug] = cat
 
+        # Matolar (Material) — nomdan Material obyekt yaratamiz.
+        material_labels = {
+            "linen": ("Linen", "Лён"),
+            "velvet": ("Velvet", "Бархат"),
+            "blackout": ("Blackout", "Блэкаут"),
+            "sheer": ("Sheer", "Тюль"),
+        }
+        material_objs = {}
+        for i, (mslug, (mu, mr)) in enumerate(material_labels.items()):
+            mat_obj, _ = Material.objects.update_or_create(
+                slug=mslug, defaults={"name_uz": mu, "name_ru": mr, "sort_order": i}
+            )
+            material_objs[mslug] = mat_obj
+
         # slug, cat, name_uz, name_ru, material, price, is_new, [style slugs], [room slugs]
         products = [
             ("linen-sahar", "linen", "Linen Sahar", "Лён Сахар", "linen", 1250000, True,
@@ -256,7 +271,6 @@ class Command(BaseCommand):
                     "category": cat_objs[cat_slug],
                     "name_uz": nu,
                     "name_ru": nr,
-                    "material": mat,
                     "price_per_m2": per_m2.get(slug),
                     "is_new": is_new,
                     "size_mode": size_modes.get(slug, "variant"),
@@ -265,6 +279,8 @@ class Command(BaseCommand):
             )
             product.styles.set([styles[s] for s in style_slugs if s in styles])
             product.rooms.set([rooms[r] for r in room_slugs if r in rooms])
+            if mat in material_objs:
+                product.materials.set([material_objs[mat]])
             # Ranglar (M2M) — birinchi 3 tasi.
             product.colors.set(list(colors.values())[:3])
             # Tayyor o'lchamli variantlar — har birining to'liq narxi bilan.

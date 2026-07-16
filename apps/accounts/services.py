@@ -7,6 +7,9 @@ from django.core.cache import cache
 from django.utils import timezone
 from datetime import timedelta
 
+from apps.notifications.sms import send_sms as _send_sms
+from apps.notifications.sms_templates import render as render_sms
+
 from .models import OTPCode
 
 logger = logging.getLogger(__name__)
@@ -64,11 +67,9 @@ def verify_otp(phone, code, purpose):
 
 
 def send_sms(phone, code):
-    """Deliver the OTP. Without a configured provider we log to the console."""
+    """OTP kodini SMS orqali yuboradi. Matn markazlashtirilgan
+    (``apps.notifications.sms_templates``), jo'natish ham markazlashtirilgan
+    (``apps.notifications.sms`` — provayder-stub, hozircha faqat log)."""
 
-    text = f"ZIG ZAG tasdiqlash kodi: {code}"
-    if not settings.SMS_PROVIDER:
-        logger.info("SMS (console) -> %s: %s", phone, text)
-        return
-    # Real provider integrations (eskiz / playmobile) wire in here.
-    logger.info("SMS via %s -> %s", settings.SMS_PROVIDER, phone)
+    text = render_sms("OTP_CODE", "uz", code=code)
+    _send_sms(phone, text)

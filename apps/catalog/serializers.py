@@ -12,6 +12,7 @@ from .models import (
     Color,
     Favorite,
     HeroContent,
+    Material,
     Product,
     ProductImage,
     ProductVariant,
@@ -87,6 +88,12 @@ class RoomSerializer(serializers.ModelSerializer):
         fields = ("slug", "name", "sort_order")
 
 
+class MaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Material
+        fields = ("slug", "name", "description", "sort_order")
+
+
 class ProductImageSerializer(ImageUrlMixin, serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
 
@@ -133,6 +140,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
     sizes_count = serializers.SerializerMethodField()
     styles = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
     rooms = serializers.SlugRelatedField(slug_field="slug", many=True, read_only=True)
+    materials = MaterialSerializer(many=True, read_only=True)
     badges = BadgeSerializer(many=True, read_only=True)
     reviews_count = serializers.IntegerField(read_only=True)
 
@@ -152,7 +160,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "rating_avg",
             "main_image",
             "sizes_count",
-            "material",
+            "materials",
             "styles",
             "rooms",
             "badges",
@@ -426,7 +434,7 @@ class AdminProductImageSerializer(ImageUrlMixin, serializers.ModelSerializer):
         return self.abs_url(obj.image)
 
 
-class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
+class AdminProductSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
     """Full read/write product representation for staff management.
 
     Slug bo'sh qoldirilsa name_uz dan avtomatik yaratiladi.
@@ -446,10 +454,15 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
     rooms = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Room.objects.all(), required=False
     )
+    materials = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Material.objects.all(), required=False
+    )
+    materials_detail = MaterialSerializer(many=True, read_only=True, source="materials")
     colors = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Color.objects.all(), required=False
     )
     colors_detail = AdminColorSerializer(many=True, read_only=True, source="colors")
+    main_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -461,7 +474,6 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
             "name_ru",
             "description_uz",
             "description_ru",
-            "material",
             "starting_price",
             "price_per_m2",
             "discount_percent",
@@ -472,12 +484,20 @@ class AdminProductSerializer(SlugAutoMixin, serializers.ModelSerializer):
             "badges_detail",
             "styles",
             "rooms",
+            "materials",
+            "materials_detail",
             "colors",
             "colors_detail",
+            "main_image",
         )
         extra_kwargs = {
             "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
         }
+
+    def get_main_image(self, obj):
+        # Meta.ordering = ["-is_main", "sort_order"] — birinchi rasm har doim asosiy (yoki mavjud bo'lmasa birinchi).
+        images = list(obj.images.all())
+        return self.abs_url(images[0].image) if images else None
 
 
 class AdminCategorySerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
@@ -543,6 +563,26 @@ class AdminRoomSerializer(SlugAutoMixin, serializers.ModelSerializer):
             "name",
             "sort_order",
             "is_active",
+        )
+        extra_kwargs = {
+            "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
+        }
+
+
+class AdminMaterialSerializer(SlugAutoMixin, serializers.ModelSerializer):
+    slug_source = "name"
+    products_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Material
+        fields = (
+            "id",
+            "slug",
+            "name",
+            "description",
+            "sort_order",
+            "is_active",
+            "products_count",
         )
         extra_kwargs = {
             "slug": {"read_only": True},  # slug orqa tarafda avtomatik (nom + id)
