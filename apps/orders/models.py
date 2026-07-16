@@ -36,6 +36,11 @@ class Order(BaseModel):
     payment_status = models.CharField(max_length=16, choices=PAYMENT_STATUS_CHOICES, default="unpaid")
     payment_provider = models.CharField(max_length=16, blank=True)
     comment = models.TextField(blank=True)
+    recipient_full_name = models.CharField(max_length=150, blank=True)
+    recipient_phone = models.CharField(max_length=20, blank=True)
+    service_tariff = models.ForeignKey(
+        "services.ServiceTariff", on_delete=models.SET_NULL, null=True, blank=True
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -55,9 +60,6 @@ class OrderItem(BaseModel):
     quantity = models.PositiveIntegerField(default=1)
     width_cm = models.PositiveIntegerField(null=True, blank=True)
     height_cm = models.PositiveIntegerField(null=True, blank=True)
-    service_tariff = models.ForeignKey(
-        "services.ServiceTariff", on_delete=models.SET_NULL, null=True, blank=True
-    )
     line_total = models.DecimalField(max_digits=12, decimal_places=2)
 
     def __str__(self):

@@ -33,10 +33,9 @@ class OrdersView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Order.objects.prefetch_related(
+        qs = Order.objects.select_related("user", "service_tariff").prefetch_related(
             "items__variant__product__images",
             "items__color",
-            "items__service_tariff",
             Prefetch(
                 "items__variant__product__reviews",
                 queryset=Review.objects.filter(user=user),
@@ -62,12 +61,15 @@ class OrdersView(generics.ListAPIView):
             address = Address.objects.get(pk=data["address_id"], user=request.user)
 
         provider = data.get("payment_provider", "")
+        recipient = data.get("recipient") or {}
         order = create_order_from_cart(
             user=request.user,
             cart=cart,
             address=address,
             comment=data.get("comment", ""),
             payment_provider=provider,
+            recipient_full_name=recipient.get("full_name", ""),
+            recipient_phone=recipient.get("phone", ""),
         )
 
         payload = OrderSerializer(order, context={"request": request}).data
@@ -83,10 +85,9 @@ class OrderDetail(generics.RetrieveAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Order.objects.prefetch_related(
+        qs = Order.objects.select_related("user", "service_tariff").prefetch_related(
             "items__variant__product__images",
             "items__color",
-            "items__service_tariff",
             Prefetch(
                 "items__variant__product__reviews",
                 queryset=Review.objects.filter(user=user),
@@ -114,7 +115,7 @@ class OrderCancelView(APIView):
 class AdminOrderList(generics.ListAPIView):
     serializer_class = AdminOrderRowSerializer
     permission_classes = [IsStaffRole]
-    queryset = Order.objects.select_related("user").prefetch_related("items")
+    queryset = Order.objects.select_related("user", "service_tariff").prefetch_related("items")
     filterset_fields = ["status", "payment_status"]
     search_fields = ["order_number", "user__phone"]
 
@@ -124,8 +125,8 @@ class AdminOrderUpdate(APIView):
 
     def get(self, request, order_number):
         order = generics.get_object_or_404(
-            Order.objects.select_related("user").prefetch_related(
-                "items__variant__product__images", "items__color", "items__service_tariff"
+            Order.objects.select_related("user", "service_tariff").prefetch_related(
+                "items__variant__product__images", "items__color"
             ),
             order_number=order_number,
         )

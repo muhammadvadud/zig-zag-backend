@@ -1,0 +1,26 @@
+# Default: auto line endings
+* text=auto
+
+# Shell scripts must always use LF (CRLF breaks them in Linux containers)
+*.sh text eol=lf
+
+# Python and config files
+*.py text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+.env text eol=lf
+*.env text eol=lf
+Dockerfile text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary

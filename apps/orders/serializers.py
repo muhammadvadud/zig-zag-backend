@@ -6,7 +6,6 @@ from .models import MeasurementRequest, Order, OrderItem
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    service_tariff = serializers.SlugRelatedField(slug_field="code", read_only=True)
     product_id = serializers.IntegerField(source="variant.product.id", read_only=True)
     product_slug = serializers.CharField(source="variant.product.slug", read_only=True)
     variant_id = serializers.IntegerField(source="variant.id", read_only=True)
@@ -30,7 +29,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "quantity",
             "width_cm",
             "height_cm",
-            "service_tariff",
             "line_total",
             "review",
         )
@@ -74,12 +72,16 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     customer = serializers.SerializerMethodField()
+    recipient = serializers.SerializerMethodField()
+    service_tariff = serializers.SlugRelatedField(slug_field="code", read_only=True)
 
     class Meta:
         model = Order
         fields = (
             "order_number",
             "customer",
+            "recipient",
+            "service_tariff",
             "status",
             "subtotal",
             "discount",
@@ -94,13 +96,26 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_customer(self, obj):
-        return obj.user.full_name or obj.user.phone
+        return {
+            "full_name": obj.user.full_name,
+            "phone": obj.user.phone,
+        }
+
+    def get_recipient(self, obj):
+        if not obj.recipient_phone:
+            return None
+        return {
+            "full_name": obj.recipient_full_name,
+            "phone": obj.recipient_phone,
+        }
 
 
 class AdminOrderRowSerializer(serializers.ModelSerializer):
     """Compact order row for the admin list (no nested items)."""
 
     customer = serializers.SerializerMethodField()
+    recipient = serializers.SerializerMethodField()
+    service_tariff = serializers.SlugRelatedField(slug_field="code", read_only=True)
     items_count = serializers.IntegerField(source="items.count", read_only=True)
 
     class Meta:
@@ -108,6 +123,8 @@ class AdminOrderRowSerializer(serializers.ModelSerializer):
         fields = (
             "order_number",
             "customer",
+            "recipient",
+            "service_tariff",
             "items_count",
             "status",
             "payment_status",
@@ -121,7 +138,23 @@ class AdminOrderRowSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_customer(self, obj):
-        return obj.user.full_name or obj.user.phone
+        return {
+            "full_name": obj.user.full_name,
+            "phone": obj.user.phone,
+        }
+
+    def get_recipient(self, obj):
+        if not obj.recipient_phone:
+            return None
+        return {
+            "full_name": obj.recipient_full_name,
+            "phone": obj.recipient_phone,
+        }
+
+
+class RecipientSerializer(serializers.Serializer):
+    full_name = serializers.CharField(required=False, allow_blank=True, max_length=150, default="")
+    phone = serializers.CharField(max_length=20)
 
 
 class CheckoutSerializer(serializers.Serializer):
@@ -130,6 +163,7 @@ class CheckoutSerializer(serializers.Serializer):
     payment_provider = serializers.ChoiceField(
         choices=["payme", "click"], required=False, allow_blank=True
     )
+    recipient = RecipientSerializer(required=False, allow_null=True)
 
     def validate_address_id(self, value):
         if value is None:

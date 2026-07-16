@@ -42,7 +42,15 @@ def generate_order_number():
 
 
 @transaction.atomic
-def create_order_from_cart(user, cart, address=None, comment="", payment_provider=""):
+def create_order_from_cart(
+    user,
+    cart,
+    address=None,
+    comment="",
+    payment_provider="",
+    recipient_full_name="",
+    recipient_phone="",
+):
     """Build an order from the cart, recomputing every price server-side.
 
     Mahsulotlar buyurtmaga qarab tikiladi — ombor (stok) tekshiruvi yo'q.
@@ -52,12 +60,20 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
     if not items:
         raise BusinessError("Savat bo'sh.")
 
+    service_tariff_ids = {item.service_tariff_id for item in items if item.service_tariff_id}
+    if len(service_tariff_ids) > 1:
+        raise BusinessError("Bitta buyurtmada faqat bitta xizmat tarifi bo'lishi mumkin.")
+    service_tariff_id = next(iter(service_tariff_ids), None)
+
     order = Order.objects.create(
         order_number=generate_order_number(),
         user=user,
         address=address,
         comment=comment,
         payment_provider=payment_provider or "",
+        recipient_full_name=recipient_full_name,
+        recipient_phone=recipient_phone,
+        service_tariff_id=service_tariff_id,
     )
 
     subtotal = 0
@@ -78,7 +94,6 @@ def create_order_from_cart(user, cart, address=None, comment="", payment_provide
             quantity=item.quantity,
             width_cm=item.width_cm,
             height_cm=item.height_cm,
-            service_tariff=item.service_tariff,
             line_total=line_total,
         )
         subtotal += line_total
