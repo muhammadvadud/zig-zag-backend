@@ -60,6 +60,7 @@ def create_order_from_cart(
     payment_provider="",
     recipient_full_name="",
     recipient_phone="",
+    delivery_method="postal",
 ):
     """Build an order from the cart, recomputing every price server-side.
 
@@ -84,6 +85,7 @@ def create_order_from_cart(
         recipient_full_name=recipient_full_name,
         recipient_phone=recipient_phone,
         service_tariff_id=service_tariff_id,
+        delivery_method=delivery_method,
     )
 
     subtotal = 0

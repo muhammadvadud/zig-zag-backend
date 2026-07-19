@@ -22,6 +22,10 @@ class Order(BaseModel):
         ("failed", "failed"),
         ("refunded", "refunded"),
     )
+    DELIVERY_METHOD_CHOICES = (
+        ("postal", "postal"),
+        ("pickup", "pickup"),
+    )
 
     order_number = models.CharField(max_length=32, unique=True, db_index=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders")
@@ -29,12 +33,16 @@ class Order(BaseModel):
     address = models.ForeignKey(
         "accounts.Address", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
     )
+    delivery_method = models.CharField(
+        max_length=16, choices=DELIVERY_METHOD_CHOICES, default="postal"
+    )
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     delivery_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_status = models.CharField(max_length=16, choices=PAYMENT_STATUS_CHOICES, default="unpaid")
     payment_provider = models.CharField(max_length=16, blank=True)
+    viewed_order = models.BooleanField(default=False)
     comment = models.TextField(blank=True)
     recipient_full_name = models.CharField(max_length=150, blank=True)
     recipient_phone = models.CharField(max_length=20, blank=True)
