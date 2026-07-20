@@ -224,7 +224,13 @@ class CheckoutSerializer(serializers.Serializer):
 
 
 class OrderStatusSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=[c[0] for c in Order.STATUS_CHOICES])
+    status = serializers.ChoiceField(choices=[c[0] for c in Order.STATUS_CHOICES], required=False)
+    viewed_order = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        if "status" not in attrs and "viewed_order" not in attrs:
+            raise serializers.ValidationError("Kamida status yoki viewed_order yuborilishi kerak.")
+        return attrs
 
 
 class MeasurementRequestSerializer(serializers.ModelSerializer):

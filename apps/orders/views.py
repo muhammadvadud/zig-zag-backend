@@ -193,19 +193,35 @@ class AdminOrderUpdate(APIView):
             ),
             order_number=order_number,
         )
+        if not order.viewed_order:
+            order.viewed_order = True
+            order.save(update_fields=["viewed_order"])
         return Response(OrderSerializer(order, context={"request": request}).data)
 
     def patch(self, request, order_number):
         order = generics.get_object_or_404(Order, order_number=order_number)
         serializer = OrderStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        new_status = serializer.validated_data["status"]
-        old_status = order.status
-        if not can_transition(old_status, new_status):
-            raise BusinessError(f"'{order.status}' dan '{new_status}' ga o'tib bo'lmaydi.")
-        order.status = new_status
-        order.save(update_fields=["status", "updated_at"])
-        notify_status_change(order, old_status, new_status)
+        
+        updated_fields = []
+        
+        if "viewed_order" in serializer.validated_data:
+            order.viewed_order = serializer.validated_data["viewed_order"]
+            updated_fields.append("viewed_order")
+            
+        if "status" in serializer.validated_data:
+            new_status = serializer.validated_data["status"]
+            old_status = order.status
+            if not can_transition(old_status, new_status):
+                raise BusinessError(f"'{order.status}' dan '{new_status}' ga o'tib bo'lmaydi.")
+            order.status = new_status
+            updated_fields.append("status")
+            notify_status_change(order, old_status, new_status)
+            
+        if updated_fields:
+            updated_fields.append("updated_at")
+            order.save(update_fields=updated_fields)
+            
         return Response(OrderSerializer(order, context={"request": request}).data)
 
 
