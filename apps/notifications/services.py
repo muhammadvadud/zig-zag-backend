@@ -85,22 +85,55 @@ def _notify_staff_telegram(staff, text_by_lang):
                 logger.exception("Telegram task navbatga qo'yilmadi (user=%s)", member.id)
 
 
+def send_ws_notification(user_id, notification):
+    """WebSocket orqali foydalanuvchiga yangi bildirishnomani yuboradi."""
+    try:
+        from apps.notifications.serializers import NotificationSerializer
+        from config.websocket import publish_notification
+
+        unread_count = Notification.objects.filter(recipient_id=user_id, is_read=False).count()
+        payload = {
+            "type": "new_notification",
+            "notification": NotificationSerializer(notification).data,
+            "unread_count": unread_count,
+        }
+        publish_notification(user_id, payload)
+    except Exception:
+        logger.exception("WebSocket orqali xabar yuborishda xatolik (user_id=%s)", user_id)
+
+
+def send_ws_unread_count_update(user_id):
+    """WebSocket orqali foydalanuvchiga o'qilmagan xabarlar soni o'zgarganini xabar qiladi."""
+    try:
+        from config.websocket import publish_notification
+
+        unread_count = Notification.objects.filter(recipient_id=user_id, is_read=False).count()
+        payload = {
+            "type": "unread_count_update",
+            "unread_count": unread_count,
+        }
+        publish_notification(user_id, payload)
+    except Exception:
+        logger.exception("WebSocket unread_count yangilashda xatolik (user_id=%s)", user_id)
+
+
 def notify_new_order(order):
-    """Yangi buyurtma haqida operatsion xodimlarga (employee/manager) xabar beradi."""
+    """Yangi buyurtma haqida faqat operatsion xodimlarga (employee/manager) xabar beradi."""
 
     try:
+        # Xodimlarga xabar berish (Sayt + Telegram + WebSocket)
         staff = _staff_recipients()
         if not staff:
             return
 
-        customer = order.user.full_name or order.user.phone
+        customer_name_or_phone = order.user.full_name or order.user.phone
         notifications = []
         telegram_by_lang = {}
         for member in staff:
             lang = _lang(member)
             title = ORDER_NEW_TITLE[lang]
             body = ORDER_NEW_BODY[lang].format(
-                order_number=order.order_number, total=order.total, customer=customer
+                order_number=order.order_number, total=order.total, customer=customer_name_or_phone
             )
             notifications.append(
                 Notification(
@@ -113,7 +146,10 @@ def notify_new_order(order):
             )
             telegram_by_lang[lang] = f"🆕 {title}\n{body}"
 
-        Notification.objects.bulk_create(notifications)
+        created_notifications = Notification.objects.bulk_create(notifications)
+        for n in created_notifications:
+            send_ws_notification(n.recipient_id, n)
+
         _notify_staff_telegram(staff, telegram_by_lang)
     except Exception:  # noqa: BLE001 — bildirishnoma xatosi buyurtmani buzmasligi kerak
         logger.exception("notify_new_order xato berdi (order=%s)", getattr(order, "order_number", None))
@@ -130,13 +166,14 @@ def notify_status_change(order, old_status, new_status):
         body = STATUS_BODY.get(lang, STATUS_BODY["uz"]).format(
             order_number=order.order_number, title=title
         )
-        Notification.objects.create(
+        notif = Notification.objects.create(
             recipient=customer,
             kind=Notification.KIND_ORDER_STATUS,
             title=title,
             body=body,
             order=order,
         )
+        send_ws_notification(customer.id, notif)
 
         sms_template = STATUS_SMS_TEMPLATE.get(new_status)
         if sms_template:
@@ -168,7 +205,10 @@ def notify_status_change(order, old_status, new_status):
                     )
                 )
                 telegram_by_lang[member_lang] = f"🔄 {member_title}\n{member_body}"
-            Notification.objects.bulk_create(staff_notifications)
+            created_staff_notifications = Notification.objects.bulk_create(staff_notifications)
+            for n in created_staff_notifications:
+                send_ws_notification(n.recipient_id, n)
+
             _notify_staff_telegram(staff, telegram_by_lang)
     except Exception:  # noqa: BLE001
         logger.exception(
@@ -177,3 +217,4 @@ def notify_status_change(order, old_status, new_status):
             old_status,
             new_status,
         )
+

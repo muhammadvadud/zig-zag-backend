@@ -11,6 +11,10 @@ django-modeltranslation==0.20.3
 celery==5.5.3
 redis==5.2.1
 django-redis==5.4.0
+uvicorn==0.34.0
+websockets==14.1
+
+
 
 # Infra / config
 whitenoise==6.9.0

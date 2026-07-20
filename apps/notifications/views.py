@@ -40,6 +40,8 @@ class NotificationMarkRead(APIView):
         if not notification.is_read:
             notification.is_read = True
             notification.save(update_fields=["is_read", "updated_at"])
+            from .services import send_ws_unread_count_update
+            send_ws_unread_count_update(request.user.id)
         return Response(NotificationSerializer(notification).data)
 
 
@@ -50,7 +52,11 @@ class NotificationMarkAllRead(APIView):
         updated = Notification.objects.filter(recipient=request.user, is_read=False).update(
             is_read=True
         )
+        if updated > 0:
+            from .services import send_ws_unread_count_update
+            send_ws_unread_count_update(request.user.id)
         return Response({"updated": updated})
+
 
 
 class TelegramToggle(APIView):
