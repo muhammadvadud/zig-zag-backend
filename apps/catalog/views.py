@@ -70,10 +70,7 @@ class CategoryList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        # Faqat (faol) mahsuloti bor kategoriyalar qaytariladi.
-        return Category.objects.filter(is_active=True).annotate(
-            products_count=Count("products", filter=Q(products__is_active=True))
-        ).filter(products_count__gt=0)
+        return Category.objects.filter(is_active=True)
 
 
 def _product_queryset():
