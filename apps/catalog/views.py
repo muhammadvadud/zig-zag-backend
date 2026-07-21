@@ -153,17 +153,17 @@ class ProductFacets(generics.GenericAPIView):
         ]
         materials = [
             {"slug": m.slug, "name": m.name, "count": m.count}
-            for m in Material.objects.filter(products__in=ids)
+            for m in Material.objects.filter(is_active=True)
             .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
             .order_by("sort_order", "name")
         ]
         styles = list(
-            Style.objects.filter(products__in=ids)
+            Style.objects.filter(is_active=True)
             .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
             .values("slug", "count").order_by("sort_order")
         )
         rooms = list(
-            Room.objects.filter(products__in=ids)
+            Room.objects.filter(is_active=True)
             .annotate(count=Count("products", filter=Q(products__in=ids), distinct=True))
             .values("slug", "count").order_by("sort_order")
         )
