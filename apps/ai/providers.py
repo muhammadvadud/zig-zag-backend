@@ -75,8 +75,44 @@ class AnthropicProvider:
         )
 
 
+class OpenAIProvider:
+    def __init__(self, model):
+        import openai
+
+        self.model = model
+        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+
+    def chat(self, system, messages, max_tokens):
+        start = time.monotonic()
+        api_messages = [{"role": "system", "content": system}] + messages
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=api_messages,
+            max_tokens=max_tokens,
+        )
+        latency = int((time.monotonic() - start) * 1000)
+        content = response.choices[0].message.content
+        return ChatResult(
+            content=content,
+            input_tokens=response.usage.prompt_tokens,
+            output_tokens=response.usage.completion_tokens,
+            model=self.model,
+            latency_ms=latency,
+        )
+
+
 def get_chat_provider(strong=False):
-    if settings.AI_STUB_MODE or not settings.ANTHROPIC_API_KEY:
+    if settings.AI_STUB_MODE:
         return StubProvider()
+    
+    provider_type = getattr(settings, "AI_PROVIDER", "anthropic").lower()
     model = settings.AI_CHAT_MODEL_STRONG if strong else settings.AI_CHAT_MODEL
+    
+    if provider_type == "openai":
+        if not settings.OPENAI_API_KEY:
+            return StubProvider()
+        return OpenAIProvider(model)
+        
+    if not settings.ANTHROPIC_API_KEY:
+        return StubProvider()
     return AnthropicProvider(model)

@@ -33,3 +33,4 @@ sentry-sdk==2.35.0
 
 # AI provider
 anthropic==0.69.0
+openai>=1.0.0

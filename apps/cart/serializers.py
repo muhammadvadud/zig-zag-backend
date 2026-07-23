@@ -8,6 +8,8 @@ from .models import Cart, CartItem
 
 class CartItemSerializer(serializers.ModelSerializer):
     product_name = serializers.SerializerMethodField()
+    product_id = serializers.IntegerField(source="variant.product_id", read_only=True)
+    color_id = serializers.IntegerField(read_only=True)
     color = serializers.CharField(source="color.name", read_only=True, default=None)
     color_hex = serializers.CharField(source="color.hex", read_only=True, default=None)
     unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
@@ -19,7 +21,9 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "variant",
+            "product_id",
             "product_name",
+            "color_id",
             "color",
             "color_hex",
             "unit_price",

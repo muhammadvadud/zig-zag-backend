@@ -6,7 +6,7 @@ from django.db.models import Q
 from apps.catalog.models import Product
 
 from .models import AIMessage
-from .prompts import SYSTEM_PROMPT, looks_like_injection, sanitize_user_input
+from .prompts import get_dynamic_system_prompt, looks_like_injection, sanitize_user_input
 from .providers import get_chat_provider
 from .quota import ensure_token_budget, record_usage
 
@@ -69,7 +69,7 @@ def handle_user_message(conversation, user, raw_content):
     messages = _build_context(conversation)
     provider = get_chat_provider()
     result = provider.chat(
-        system=SYSTEM_PROMPT,
+        system=get_dynamic_system_prompt(),
         messages=messages,
         max_tokens=settings.AI_MAX_OUTPUT_TOKENS,
     )

@@ -394,12 +394,13 @@ TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 # --------------------------------------------------------------------------- #
 AI_PROVIDER = env("AI_PROVIDER", default="anthropic")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 AI_CHAT_MODEL = env("AI_CHAT_MODEL", default="claude-haiku-4-5-20251001")
 AI_CHAT_MODEL_STRONG = env("AI_CHAT_MODEL_STRONG", default="claude-sonnet-4-6")
 AI_MAX_OUTPUT_TOKENS = env.int("AI_MAX_OUTPUT_TOKENS", default=800)
 AI_MAX_INPUT_CHARS = env.int("AI_MAX_INPUT_CHARS", default=2000)
 AI_CONTEXT_WINDOW_MESSAGES = env.int("AI_CONTEXT_WINDOW_MESSAGES", default=10)
-AI_STUB_MODE = env.bool("AI_STUB_MODE", default=not bool(ANTHROPIC_API_KEY))
+AI_STUB_MODE = env.bool("AI_STUB_MODE", default=not (bool(ANTHROPIC_API_KEY) or bool(OPENAI_API_KEY)))
 
 # --------------------------------------------------------------------------- #
 # Payments
