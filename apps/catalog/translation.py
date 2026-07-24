@@ -80,11 +80,8 @@ class HeroContentTranslationOptions(TranslationOptions):
         "title",
         "title_italic",
         "description",
-        "stat1_value",
         "stat1_label",
-        "stat2_value",
         "stat2_label",
-        "stat3_value",
         "stat3_label",
     )
 

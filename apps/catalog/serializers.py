@@ -501,14 +501,15 @@ class AdminProductSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSeri
 
 
 class AdminCategorySerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
-    slug_source = "name"
+    slug_source = "name_uz"
 
     class Meta:
         model = Category
         fields = (
             "id",
             "slug",
-            "name",
+            "name_uz",
+            "name_ru",
             "icon",
             "image",
             "sort_order",
@@ -528,15 +529,17 @@ class AdminCategorySerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSer
 
 
 class AdminStyleSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerializer):
-    slug_source = "name"
+    slug_source = "name_uz"
 
     class Meta:
         model = Style
         fields = (
             "id",
             "slug",
-            "name",
-            "blurb",
+            "name_uz",
+            "name_ru",
+            "blurb_uz",
+            "blurb_ru",
             "image",
             "sort_order",
             "is_active",
@@ -553,14 +556,15 @@ class AdminStyleSerializer(ImageUrlMixin, SlugAutoMixin, serializers.ModelSerial
 
 
 class AdminRoomSerializer(SlugAutoMixin, serializers.ModelSerializer):
-    slug_source = "name"
+    slug_source = "name_uz"
 
     class Meta:
         model = Room
         fields = (
             "id",
             "slug",
-            "name",
+            "name_uz",
+            "name_ru",
             "sort_order",
             "is_active",
         )
@@ -570,7 +574,7 @@ class AdminRoomSerializer(SlugAutoMixin, serializers.ModelSerializer):
 
 
 class AdminMaterialSerializer(SlugAutoMixin, serializers.ModelSerializer):
-    slug_source = "name"
+    slug_source = "name_uz"
     products_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -578,8 +582,10 @@ class AdminMaterialSerializer(SlugAutoMixin, serializers.ModelSerializer):
         fields = (
             "id",
             "slug",
-            "name",
-            "description",
+            "name_uz",
+            "name_ru",
+            "description_uz",
+            "description_ru",
             "sort_order",
             "is_active",
             "products_count",
@@ -666,16 +672,13 @@ class AdminHeroContentSerializer(serializers.ModelSerializer):
             "title_italic_ru",
             "description_uz",
             "description_ru",
-            "stat1_value_uz",
-            "stat1_value_ru",
+            "stat1_value",
             "stat1_label_uz",
             "stat1_label_ru",
-            "stat2_value_uz",
-            "stat2_value_ru",
+            "stat2_value",
             "stat2_label_uz",
             "stat2_label_ru",
-            "stat3_value_uz",
-            "stat3_value_ru",
+            "stat3_value",
             "stat3_label_uz",
             "stat3_label_ru",
             "sort_order",
