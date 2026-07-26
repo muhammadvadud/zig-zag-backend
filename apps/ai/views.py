@@ -76,20 +76,12 @@ class ConversationMessages(APIView):
             conversation, request.user, serializer.validated_data["content"]
         )
 
-        usage = None
-        if quota is not None:
-            usage = {
-                "input_tokens": assistant.input_tokens,
-                "output_tokens": assistant.output_tokens,
-                "remaining_quota": max(quota.token_limit - quota.tokens_used, 0),
-            }
         return Response(
             {
                 "message_id": assistant.id,
                 "role": "assistant",
                 "content": assistant.content,
                 "suggested_products": suggestions,
-                "usage": usage,
             }
         )
 

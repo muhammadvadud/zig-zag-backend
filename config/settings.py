@@ -401,6 +401,7 @@ AI_MAX_OUTPUT_TOKENS = env.int("AI_MAX_OUTPUT_TOKENS", default=800)
 AI_MAX_INPUT_CHARS = env.int("AI_MAX_INPUT_CHARS", default=2000)
 AI_CONTEXT_WINDOW_MESSAGES = env.int("AI_CONTEXT_WINDOW_MESSAGES", default=10)
 AI_STUB_MODE = env.bool("AI_STUB_MODE", default=not (bool(ANTHROPIC_API_KEY) or bool(OPENAI_API_KEY)))
+AI_DEBUG_TOKENS = env.bool("AI_DEBUG_TOKENS", default=False)
 
 # --------------------------------------------------------------------------- #
 # Payments

@@ -29,15 +29,33 @@ class StubProvider:
     model = "stub"
 
     def chat(self, system, messages, max_tokens):
+        import json as _json
+
         start = time.monotonic()
         last_user = next(
             (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
         )
-        content = (
-            "Pardalar bo'yicha yordam bera olaman. Siz so'radingiz: "
-            f"\"{last_user[:120]}\". Yotoqxona uchun blackout yoki velvet, "
-            "mehmonxona uchun linen yoki sheer pardalarni tavsiya qilaman."
-        )
+
+        # Attempt basic keyword matching against materials listed in the
+        # system prompt so the stub behaves like the real intent extractor.
+        found = []
+        lowered = last_user.lower()
+        for line in system.splitlines():
+            line = line.strip()
+            if line.startswith("- ") and line != "- (hozircha materiallar yo'q)":
+                mat_name = line[2:].strip()
+                if mat_name.lower() in lowered:
+                    found.append(mat_name)
+
+        if found:
+            msg = f"Sizga {', '.join(found)} materialidagi pardalarni tavsiya qilaman!"
+        else:
+            msg = (
+                "Assalomu alaykum! Men ZigZag AI maslahatchisiman. "
+                "Sizga premium pardalar tanlashda qanday yordam bera olaman?"
+            )
+
+        content = _json.dumps({"message": msg, "materials": found}, ensure_ascii=False)
         latency = int((time.monotonic() - start) * 1000)
         approx_in = sum(len(m["content"]) for m in messages) // 4
         return ChatResult(
