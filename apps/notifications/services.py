@@ -85,38 +85,6 @@ def _notify_staff_telegram(staff, text_by_lang):
                 logger.exception("Telegram task navbatga qo'yilmadi (user=%s)", member.id)
 
 
-def send_ws_notification(user_id, notification):
-    """WebSocket orqali foydalanuvchiga yangi bildirishnomani yuboradi."""
-    try:
-        from apps.notifications.serializers import NotificationSerializer
-        from config.websocket import publish_notification
-
-        unread_count = Notification.objects.filter(recipient_id=user_id, is_read=False).count()
-        payload = {
-            "type": "new_notification",
-            "notification": NotificationSerializer(notification).data,
-            "unread_count": unread_count,
-        }
-        publish_notification(user_id, payload)
-    except Exception:
-        logger.exception("WebSocket orqali xabar yuborishda xatolik (user_id=%s)", user_id)
-
-
-def send_ws_unread_count_update(user_id):
-    """WebSocket orqali foydalanuvchiga o'qilmagan xabarlar soni o'zgarganini xabar qiladi."""
-    try:
-        from config.websocket import publish_notification
-
-        unread_count = Notification.objects.filter(recipient_id=user_id, is_read=False).count()
-        payload = {
-            "type": "unread_count_update",
-            "unread_count": unread_count,
-        }
-        publish_notification(user_id, payload)
-    except Exception:
-        logger.exception("WebSocket unread_count yangilashda xatolik (user_id=%s)", user_id)
-
-
 def notify_new_order(order):
     """Yangi buyurtma haqida faqat operatsion xodimlarga (employee/manager) xabar beradi."""
 
@@ -146,9 +114,7 @@ def notify_new_order(order):
             )
             telegram_by_lang[lang] = f"🆕 {title}\n{body}"
 
-        created_notifications = Notification.objects.bulk_create(notifications)
-        for n in created_notifications:
-            send_ws_notification(n.recipient_id, n)
+        Notification.objects.bulk_create(notifications)
 
         _notify_staff_telegram(staff, telegram_by_lang)
     except Exception:  # noqa: BLE001 — bildirishnoma xatosi buyurtmani buzmasligi kerak
@@ -166,14 +132,13 @@ def notify_status_change(order, old_status, new_status):
         body = STATUS_BODY.get(lang, STATUS_BODY["uz"]).format(
             order_number=order.order_number, title=title
         )
-        notif = Notification.objects.create(
+        Notification.objects.create(
             recipient=customer,
             kind=Notification.KIND_ORDER_STATUS,
             title=title,
             body=body,
             order=order,
         )
-        send_ws_notification(customer.id, notif)
 
         sms_template = STATUS_SMS_TEMPLATE.get(new_status)
         if sms_template:
@@ -205,9 +170,7 @@ def notify_status_change(order, old_status, new_status):
                     )
                 )
                 telegram_by_lang[member_lang] = f"🔄 {member_title}\n{member_body}"
-            created_staff_notifications = Notification.objects.bulk_create(staff_notifications)
-            for n in created_staff_notifications:
-                send_ws_notification(n.recipient_id, n)
+            Notification.objects.bulk_create(staff_notifications)
 
             _notify_staff_telegram(staff, telegram_by_lang)
     except Exception:  # noqa: BLE001

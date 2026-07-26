@@ -98,7 +98,11 @@ class OpenAIProvider:
         import openai
 
         self.model = model
-        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+        # VAQTINCHALIK: OpenRouter uchun base_url (testdan so'ng olib tashlashingiz mumkin)
+        self.client = openai.OpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            base_url="https://openrouter.ai/api/v1"
+        )
 
     def chat(self, system, messages, max_tokens):
         start = time.monotonic()

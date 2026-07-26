@@ -47,7 +47,10 @@ def _parse_intent(raw_content):
     """
     default = {"message": "", "materials": []}
 
-    text = raw_content.strip()
+    if not raw_content:
+        return default
+
+    text = str(raw_content).strip()
 
     # Strip markdown code fences if present.
     if text.startswith("```"):
@@ -177,8 +180,8 @@ def handle_user_message(conversation, user, raw_content):
     # Parse the structured JSON from the LLM response.
     intent = _parse_intent(result.content)
 
-    # Use the conversational message for the user; fall back to raw content.
-    reply_text = intent["message"] or result.content
+    # Use the conversational message for the user; fall back to raw content or a default string.
+    reply_text = intent["message"] or result.content or "Uzr, vaqtinchalik xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring."
 
     # Persist the conversational message as the assistant reply.
     assistant = AIMessage.objects.create(
@@ -208,22 +211,7 @@ def handle_user_message(conversation, user, raw_content):
         user_id = user.id if user and user.is_authenticated else "anonymous"
         user_phone = getattr(user, "phone", "—") if user and user.is_authenticated else "—"
         logger.info(
-            "\n"
-            "╔══════════════════════════════════════════════════════════════╗\n"
-            "║                   AI TOKEN DEBUG LOG                       ║\n"
-            "╠══════════════════════════════════════════════════════════════╣\n"
-            "║  User ID       : %-40s  ║\n"
-            "║  User Phone    : %-40s  ║\n"
-            "║  Conversation  : %-40s  ║\n"
-            "║  Message ID    : %-40s  ║\n"
-            "║  Model         : %-40s  ║\n"
-            "║  Input Tokens  : %-40s  ║\n"
-            "║  Output Tokens : %-40s  ║\n"
-            "║  Total Tokens  : %-40s  ║\n"
-            "║  Latency       : %-40s  ║\n"
-            "║  Materials     : %-40s  ║\n"
-            "║  Products Found: %-40s  ║\n"
-            "╚══════════════════════════════════════════════════════════════╝",
+            "AI_TOKEN_DEBUG | User: %s (%s) | Conv: %s | Msg: %s | Model: %s | Tokens: %s IN + %s OUT = %s TOT | Latency: %s | Materials: %s | Found: %s",
             user_id,
             user_phone,
             conversation.id,
@@ -232,8 +220,8 @@ def handle_user_message(conversation, user, raw_content):
             result.input_tokens,
             result.output_tokens,
             total_tokens,
-            f"{result.latency_ms} ms",
-            ", ".join(intent["materials"]) or "—",
+            f"{result.latency_ms}ms",
+            ", ".join(intent["materials"]) or "None",
             len(suggestions),
         )
 
