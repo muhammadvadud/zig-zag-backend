@@ -19,6 +19,10 @@ django_asgi_app = get_asgi_application()
 async def application(scope, receive, send):
     if scope["type"] == "http":
         await django_asgi_app(scope, receive, send)
+    elif scope["type"] == "websocket":
+        # Frontend hali ham websocket ga ulanishga harakat qilyapti.
+        # Xatolar (500) logni to'ldirib yubormasligi uchun jimgina yopamiz.
+        await send({"type": "websocket.close"})
     else:
         raise NotImplementedError(f"Unknown scope type {scope['type']}")
 
