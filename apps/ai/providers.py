@@ -24,7 +24,13 @@ class ChatResult:
 
 
 class StubProvider:
-    """Offline fallback used when AI_STUB_MODE is on."""
+    """Offline fallback used when AI_STUB_MODE is on.
+
+    Yangi arxitektura uchun: prompt turiga qarab mos stub javob qaytaradi.
+    - Intent detection prompt → intent nomi (product_search, greeting, etc.)
+    - Filter extraction prompt → JSON filtrlar
+    - Response generation prompt → tabiiy tildagi javob
+    """
 
     model = "stub"
 
@@ -35,27 +41,23 @@ class StubProvider:
         last_user = next(
             (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
         )
-
-        # Attempt basic keyword matching against materials listed in the
-        # system prompt so the stub behaves like the real intent extractor.
-        found = []
         lowered = last_user.lower()
-        for line in system.splitlines():
-            line = line.strip()
-            if line.startswith("- ") and line != "- (hozircha materiallar yo'q)":
-                mat_name = line[2:].strip()
-                if mat_name.lower() in lowered:
-                    found.append(mat_name)
 
-        if found:
-            msg = f"Sizga {', '.join(found)} materialidagi pardalarni tavsiya qilaman!"
+        # Prompt turini aniqlash
+        system_lower = system.lower()
+
+        if "klassifikator" in system_lower or "intent" in system_lower:
+            # ── Intent Detection ──
+            content = self._detect_intent_stub(lowered, system)
+
+        elif "filtrlarini ajratasan" in system_lower or '"filters"' in system_lower:
+            # ── Filter Extraction ──
+            content = self._extract_filters_stub(lowered, system)
+
         else:
-            msg = (
-                "Assalomu alaykum! Men ZigZag AI maslahatchisiman. "
-                "Sizga premium pardalar tanlashda qanday yordam bera olaman?"
-            )
+            # ── Response Generation ──
+            content = self._generate_response_stub(lowered)
 
-        content = _json.dumps({"message": msg, "materials": found}, ensure_ascii=False)
         latency = int((time.monotonic() - start) * 1000)
         approx_in = sum(len(m["content"]) for m in messages) // 4
         return ChatResult(
@@ -65,6 +67,79 @@ class StubProvider:
             model=self.model,
             latency_ms=latency,
         )
+
+    @staticmethod
+    def _detect_intent_stub(lowered, system):
+        """Intent aniqlash uchun stub."""
+        greetings = ("salom", "assalom", "привет", "здравствуй", "hi", "hello")
+        if any(g in lowered for g in greetings):
+            return "greeting"
+
+        product_keywords = (
+            "kerak", "bor mi", "ko'rsat", "top", "qidir",
+            "sotib", "olmoqchi", "buyurtma", "нужн", "покаж",
+            "хочу", "купить",
+        )
+        if any(k in lowered for k in product_keywords):
+            return "product_search"
+
+        curtain_keywords = (
+            "parda", "mato", "material", "yuv", "rang",
+            "штор", "ткан", "матери", "стир",
+        )
+        if any(k in lowered for k in curtain_keywords):
+            # Agar parda bilan bog'liq, lekin material/rang aytilsa → product_search
+            # Aks holda → information_question
+            material_keywords = ("blackout", "baxmal", "atlas", "organza", "tyul")
+            if any(m in lowered for m in material_keywords):
+                return "product_search"
+            return "information_question"
+
+        return "information_question"
+
+    @staticmethod
+    def _extract_filters_stub(lowered, system):
+        """Filter ajratish uchun stub."""
+        import json as _json
+
+        # System promptdan mavjud materiallarni ajratish
+        found_materials = []
+        for line in system.splitlines():
+            line_stripped = line.strip()
+            # "Materiallar: Blackout, Baxmal, ..." formatidan ajratish
+            if line_stripped.startswith("Materiallar:"):
+                mats = line_stripped[len("Materiallar:"):].strip()
+                for m in mats.split(","):
+                    m = m.strip()
+                    if m and m.lower() in lowered:
+                        found_materials.append(m)
+
+        filters = {
+            "intent": "product_search",
+            "filters": {
+                "materials": found_materials,
+                "colors": [],
+                "room": None,
+                "style": None,
+                "pattern": None,
+                "category": None,
+                "width": None,
+                "height": None,
+            },
+            "missing": [],
+        }
+        return _json.dumps(filters, ensure_ascii=False)
+
+    @staticmethod
+    def _generate_response_stub(lowered):
+        """Javob yaratish uchun stub."""
+        greetings = ("salom", "assalom", "привет", "здравствуй")
+        if any(g in lowered for g in greetings):
+            return (
+                "Assalomu alaykum! Men ZigZag AI maslahatchisiman. "
+                "Sizga premium pardalar tanlashda qanday yordam bera olaman?"
+            )
+        return "Sizga mos pardalarni topib beraman!"
 
 
 class AnthropicProvider:
