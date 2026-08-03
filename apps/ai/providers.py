@@ -150,6 +150,11 @@ class AnthropicProvider:
         self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     def chat(self, system, messages, max_tokens):
+        if getattr(settings, "AI_DEBUG_TOKENS", False):
+            logger.info("\n" + "="*50 + " AI FULL PROMPT (Anthropic) " + "="*50)
+            logger.info("SYSTEM:\n%s\n", system)
+            logger.info("MESSAGES:\n%s", messages)
+
         start = time.monotonic()
         response = self.client.messages.create(
             model=self.model,
@@ -159,6 +164,12 @@ class AnthropicProvider:
         )
         latency = int((time.monotonic() - start) * 1000)
         content = "".join(block.text for block in response.content if block.type == "text")
+        
+        if getattr(settings, "AI_DEBUG_TOKENS", False):
+            logger.info("\n" + "="*50 + " AI RESPONSE (Anthropic) " + "="*50)
+            logger.info(content)
+            logger.info("="*125 + "\n")
+
         return ChatResult(
             content=content,
             input_tokens=response.usage.input_tokens,
@@ -166,7 +177,6 @@ class AnthropicProvider:
             model=self.model,
             latency_ms=latency,
         )
-
 
 class OpenAIProvider:
     def __init__(self, model):
@@ -180,6 +190,11 @@ class OpenAIProvider:
         )
 
     def chat(self, system, messages, max_tokens):
+        if getattr(settings, "AI_DEBUG_TOKENS", False):
+            logger.info("\n" + "="*50 + " AI FULL PROMPT (OpenAI) " + "="*50)
+            logger.info("SYSTEM:\n%s\n", system)
+            logger.info("MESSAGES:\n%s", messages)
+
         start = time.monotonic()
         api_messages = [{"role": "system", "content": system}] + messages
         response = self.client.chat.completions.create(
@@ -189,10 +204,18 @@ class OpenAIProvider:
         )
         latency = int((time.monotonic() - start) * 1000)
         content = response.choices[0].message.content
+        
+        if getattr(settings, "AI_DEBUG_TOKENS", False):
+            logger.info("\n" + "="*50 + " AI RESPONSE (OpenAI) " + "="*50)
+            logger.info(content)
+            logger.info("="*122 + "\n")
+
+        input_tokens = response.usage.prompt_tokens if response.usage else 0
+        output_tokens = response.usage.completion_tokens if response.usage else 0
         return ChatResult(
             content=content,
-            input_tokens=response.usage.prompt_tokens,
-            output_tokens=response.usage.completion_tokens,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             model=self.model,
             latency_ms=latency,
         )

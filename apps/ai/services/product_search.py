@@ -111,9 +111,10 @@ def search_products(filters, limit=6):
 
         results.append({
             "id": p.id,
-            "title": p.name,
+            "name": p.name,
             "slug": p.slug,
-            "image": image_url,
+            "img": image_url,
+            "price": float(p.starting_price()) if p.starting_price() else None,
         })
 
     logger.debug("Product search: %d results for filters %s", len(results), f)

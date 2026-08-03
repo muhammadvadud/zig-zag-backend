@@ -38,6 +38,7 @@ class AIMessage(BaseModel):
     output_tokens = models.PositiveIntegerField(null=True, blank=True)
     model = models.CharField(max_length=64, blank=True)
     latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    suggested_products = models.JSONField(null=True, blank=True)
 
     class Meta:
         ordering = ["created_at"]

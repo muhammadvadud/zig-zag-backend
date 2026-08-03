@@ -147,6 +147,7 @@ def handle_user_message(conversation, user, raw_content):
         output_tokens=total_output_tokens,
         model=response_result.model,
         latency_ms=response_result.latency_ms,
+        suggested_products=suggestions if suggestions else None,
     )
 
     if quota is not None:
@@ -172,7 +173,7 @@ def handle_user_message(conversation, user, raw_content):
         logger.info(
             "AI_TOKEN_DEBUG | User: %s (%s) | Conv: %s | Msg: %s | "
             "Model: %s | Intent: %s | Tokens: %s IN + %s OUT = %s TOT | "
-            "Latency: %s | Materials: %s | Found: %s",
+            "Latency: %s | Materials: %s | Found: %s\n",
             user_id,
             user_phone,
             conversation.id,
