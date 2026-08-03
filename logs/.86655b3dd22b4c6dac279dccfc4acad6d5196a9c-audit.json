@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/home/muhammadvadud/it/zig-zag/logs/.86655b3dd22b4c6dac279dccfc4acad6d5196a9c-audit.json",
+    "files": [
+        {
+            "date": 1785760087268,
+            "name": "/home/muhammadvadud/it/zig-zag/logs/mcp-puppeteer-2026-08-03.log",
+            "hash": "9dcfbbb8b24eaad068af6187483ce1a64eecbe289c7bcf8106a92943509af153"
+        }
+    ],
+    "hashType": "sha256"
+}

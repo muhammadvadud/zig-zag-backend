@@ -58,6 +58,9 @@ class AIImageGeneration(BaseModel):
     product = models.ForeignKey(
         "catalog.Product", on_delete=models.SET_NULL, null=True, blank=True, related_name="ai_images"
     )
+    color = models.ForeignKey(
+        "catalog.Color", on_delete=models.SET_NULL, null=True, blank=True
+    )
     prompt = models.TextField(blank=True)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="queued")
     result_image = models.ImageField(upload_to="ai/result/", null=True, blank=True)

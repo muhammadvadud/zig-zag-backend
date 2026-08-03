@@ -22,3 +22,4 @@ __all__ = [
     "search_products",
     "generate_response",
 ]
+from .smart_response import generate_smart_response

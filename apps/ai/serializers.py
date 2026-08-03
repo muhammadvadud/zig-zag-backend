@@ -13,9 +13,35 @@ class AIConversationSerializer(serializers.ModelSerializer):
 
 
 class AIMessageSerializer(serializers.ModelSerializer):
+    suggested_products = serializers.SerializerMethodField()
+
     class Meta:
         model = AIMessage
-        fields = ("id", "role", "content", "created_at")
+        fields = ("id", "role", "content", "suggested_products", "created_at")
+
+    def get_suggested_products(self, obj):
+        if not obj.suggested_products:
+            return None
+            
+        products_data = obj.suggested_products
+        product_ids = [p.get("id") for p in products_data if p.get("id")]
+        
+        if not product_ids:
+            return products_data
+            
+        # Dynamically inject translated names based on the current Accept-Language
+        from apps.catalog.models import Product
+        live_products = {p.id: p.name for p in Product.objects.filter(id__in=product_ids)}
+        request = self.context.get("request")
+        
+        for p in products_data:
+            live_name = live_products.get(p.get("id"))
+            if live_name:
+                p["name"] = live_name
+            if p.get("img") and request and not p["img"].startswith("http"):
+                p["img"] = request.build_absolute_uri(p["img"])
+                
+        return products_data
 
 
 class MessageCreateSerializer(serializers.Serializer):
@@ -58,6 +84,7 @@ class AdminAIUsageSerializer(serializers.ModelSerializer):
 class ImageCreateSerializer(serializers.Serializer):
     source_image = serializers.ImageField(required=False)
     product_id = serializers.IntegerField(required=False)
+    color_id = serializers.IntegerField(required=False)
     prompt = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate_source_image(self, value):

@@ -21,9 +21,7 @@ from .quota import ensure_token_budget, record_usage
 from .services import (
     build_metadata,
     detect_intent,
-    extract_filters,
-    generate_response,
-    search_products,
+    generate_smart_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,49 +90,34 @@ def handle_user_message(conversation, user, raw_content):
     # ──────────────────────────────────────────────────────────────────────
     # 1-BOSQICH: Intent Detection
     # ──────────────────────────────────────────────────────────────────────
-    intent, intent_result = detect_intent(provider, content)
+    intent, intent_result = detect_intent(
+        provider, content, max_tokens=4000
+    )
     total_input_tokens += intent_result.input_tokens or 0
     total_output_tokens += intent_result.output_tokens or 0
 
     suggestions = []
-    filters_data = None
-
-    # ──────────────────────────────────────────────────────────────────────
-    # 2-BOSQICH: Filter Extraction (faqat product_search uchun)
-    # ──────────────────────────────────────────────────────────────────────
-    if intent == "product_search":
-        metadata = build_metadata()
-        filters_data, filter_result = extract_filters(
-            provider, content, metadata,
-            max_tokens=settings.AI_MAX_OUTPUT_TOKENS,
+    
+    if intent == "unrelated":
+        # 0 LLM calls - super fast rejection of unrelated topics
+        reply_text = "Kechirasiz, men faqat pardalar, matolar va do'kon xizmatlari haqida yordam bera olaman."
+        response_model = "system"
+        latency_ms = 0
+    else:
+        # 2-BOSQICH: Bitta chaqiriqda hamma narsani hal qilish
+        conversation_messages = _build_context(conversation)
+        
+        reply_text, response_result, suggestions = generate_smart_response(
+            provider=provider,
+            conversation_messages=conversation_messages,
+            intent=intent,
+            max_tokens=4000
         )
-        total_input_tokens += filter_result.input_tokens or 0
-        total_output_tokens += filter_result.output_tokens or 0
-
-        # ──────────────────────────────────────────────────────────────────
-        # 3-BOSQICH: Product Search (bazadan qidirish)
-        # ──────────────────────────────────────────────────────────────────
-        suggestions = search_products(filters_data)
-
-    # ──────────────────────────────────────────────────────────────────────
-    # 4-BOSQICH: Response Generation
-    # ──────────────────────────────────────────────────────────────────────
-    conversation_messages = _build_context(conversation)
-
-    missing = filters_data.get("missing", []) if filters_data else None
-    filters_for_response = filters_data.get("filters") if filters_data else None
-
-    reply_text, response_result = generate_response(
-        provider=provider,
-        conversation_messages=conversation_messages,
-        intent=intent,
-        max_tokens=settings.AI_MAX_OUTPUT_TOKENS,
-        filters=filters_for_response,
-        suggestions=suggestions,
-        missing=missing,
-    )
-    total_input_tokens += response_result.input_tokens or 0
-    total_output_tokens += response_result.output_tokens or 0
+        
+        total_input_tokens += response_result.input_tokens or 0
+        total_output_tokens += response_result.output_tokens or 0
+        response_model = response_result.model
+        latency_ms = response_result.latency_ms
 
     # ──────────────────────────────────────────────────────────────────────
     # Natijani saqlash — faqat tabiiy javob historyga yoziladi
@@ -145,8 +128,8 @@ def handle_user_message(conversation, user, raw_content):
         content=reply_text,
         input_tokens=total_input_tokens,
         output_tokens=total_output_tokens,
-        model=response_result.model,
-        latency_ms=response_result.latency_ms,
+        model=response_model,
+        latency_ms=latency_ms,
         suggested_products=suggestions if suggestions else None,
     )
 
@@ -167,8 +150,8 @@ def handle_user_message(conversation, user, raw_content):
         user_phone = getattr(user, "phone", "—") if user and user.is_authenticated else "—"
 
         materials_str = "None"
-        if filters_data and filters_data.get("filters", {}).get("materials"):
-            materials_str = ", ".join(filters_data["filters"]["materials"])
+        if suggestions:
+            materials_str = "Smart Filter Applied"
 
         logger.info(
             "AI_TOKEN_DEBUG | User: %s (%s) | Conv: %s | Msg: %s | "
@@ -178,12 +161,12 @@ def handle_user_message(conversation, user, raw_content):
             user_phone,
             conversation.id,
             assistant.id,
-            response_result.model,
+            response_model,
             intent,
             total_input_tokens,
             total_output_tokens,
             total_tokens,
-            f"{response_result.latency_ms}ms",
+            f"{latency_ms}ms",
             materials_str,
             len(suggestions),
         )

@@ -50,9 +50,9 @@ def search_products(filters, limit=6):
     if materials:
         material_q = Q()
         for mat in materials:
-            material_q |= Q(materials__name__iexact=mat)
-            material_q |= Q(materials__name_uz__iexact=mat)
-            material_q |= Q(materials__name_ru__iexact=mat)
+            material_q |= Q(materials__name__icontains=mat)
+            material_q |= Q(materials__name_uz__icontains=mat)
+            material_q |= Q(materials__name_ru__icontains=mat)
         qs = qs.filter(material_q)
         has_filter = True
 
@@ -61,9 +61,9 @@ def search_products(filters, limit=6):
     if colors:
         color_q = Q()
         for clr in colors:
-            color_q |= Q(colors__name__iexact=clr)
-            color_q |= Q(colors__name_uz__iexact=clr)
-            color_q |= Q(colors__name_ru__iexact=clr)
+            color_q |= Q(colors__name__icontains=clr)
+            color_q |= Q(colors__name_uz__icontains=clr)
+            color_q |= Q(colors__name_ru__icontains=clr)
         qs = qs.filter(color_q)
         has_filter = True
 
@@ -71,9 +71,9 @@ def search_products(filters, limit=6):
     room = f.get("room")
     if room:
         qs = qs.filter(
-            Q(rooms__name__iexact=room)
-            | Q(rooms__name_uz__iexact=room)
-            | Q(rooms__name_ru__iexact=room)
+            Q(rooms__name__icontains=room)
+            | Q(rooms__name_uz__icontains=room)
+            | Q(rooms__name_ru__icontains=room)
         )
         has_filter = True
 
@@ -81,9 +81,9 @@ def search_products(filters, limit=6):
     style = f.get("style")
     if style:
         qs = qs.filter(
-            Q(styles__name__iexact=style)
-            | Q(styles__name_uz__iexact=style)
-            | Q(styles__name_ru__iexact=style)
+            Q(styles__name__icontains=style)
+            | Q(styles__name_uz__icontains=style)
+            | Q(styles__name_ru__icontains=style)
         )
         has_filter = True
 
@@ -91,9 +91,9 @@ def search_products(filters, limit=6):
     category = f.get("category")
     if category:
         qs = qs.filter(
-            Q(category__name__iexact=category)
-            | Q(category__name_uz__iexact=category)
-            | Q(category__name_ru__iexact=category)
+            Q(category__name__icontains=category)
+            | Q(category__name_uz__icontains=category)
+            | Q(category__name_ru__icontains=category)
         )
         has_filter = True
 
@@ -114,7 +114,7 @@ def search_products(filters, limit=6):
             "name": p.name,
             "slug": p.slug,
             "img": image_url,
-            "price": float(p.starting_price()) if p.starting_price() else None,
+            "price": float(p.starting_price) if p.starting_price else None,
         })
 
     logger.debug("Product search: %d results for filters %s", len(results), f)

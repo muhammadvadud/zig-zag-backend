@@ -31,7 +31,7 @@ INTENT_SYSTEM_PROMPT = (
 VALID_INTENTS = {"product_search", "information_question", "greeting", "unrelated"}
 
 
-def detect_intent(provider, user_message, max_tokens=20):
+def detect_intent(provider, user_message, max_tokens=100):
     """Foydalanuvchi xabaridan intent aniqlash.
 
     Args:

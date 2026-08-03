@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 RESPONSE_SYSTEM_PROMPT = (
     "Sen ZIG ZAG — premium pardalar do'koni maslahatchisisan.\n"
-    "Foydalanuvchi qaysi tilda yozsa, o'sha tilda javob ber.\n"
+    "Foydalanuvchi qaysi tilda yozsa, albatta o'sha tilda javob ber.\n"
+    "MUHIM: Mato (masalan: sheer - yupqa/tyul, blackout - qalin qorong'ulovchi, velvet - baxmal) va rang nomlarini foydalanuvchi yozgan tilga (masalan o'zbekchaga) to'g'ri tarjima qilib, gapga tabiiy qo'shib yoz. Ularni inglizcha holida qoldirma!\n"
     "Javoblar qisqa, samimiy va professional bo'lsin.\n"
     "Faqat pardalar, matolar, ranglar, dizayn, o'lcham va buyurtma haqida gapir.\n"
     "Boshqa mavzularga muloyimlik bilan pardalar mavzusiga qaytar.\n"
@@ -44,7 +45,14 @@ def generate_response(provider, conversation_messages, intent, max_tokens=500,
     # Kontekstni intent ga qarab boyitish
     system = RESPONSE_SYSTEM_PROMPT
 
-    if intent == "product_search":
+    if intent == "greeting":
+        system += (
+            "\nDIQQAT: Foydalanuvchi faqat salomlashmoqda yoki suhbatni endi boshladi. "
+            "JAVOBING JUDA QISQA BO'LSIN (maksimum 1-2 ta qisqa gap). "
+            "Misol: 'Assalomu alaykum! Men ZIG ZAG pardalar bo'yicha maslahatchiman. Sizga qanday yordam bera olaman?' "
+            "Hech qanday qo'shimcha ma'lumot, uzun maslahatlar yoki tushuntirishlar YOZMA!"
+        )
+    elif intent == "product_search":
         extra = _build_product_search_context(filters, suggestions, missing)
         if extra:
             system += "\n" + extra

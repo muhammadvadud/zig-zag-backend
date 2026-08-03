@@ -68,7 +68,7 @@ class ConversationMessages(APIView):
     def get(self, request, pk):
         conversation = self._get_conversation(request, pk)
         messages = conversation.messages.all()
-        return Response(AIMessageSerializer(messages, many=True).data)
+        return Response(AIMessageSerializer(messages, many=True, context={'request': request}).data)
 
     def post(self, request, pk):
         conversation = self._get_conversation(request, pk)
@@ -78,6 +78,11 @@ class ConversationMessages(APIView):
         assistant, suggestions, quota = handle_user_message(
             conversation, request.user, serializer.validated_data["content"]
         )
+
+        if suggestions:
+            for s in suggestions:
+                if s.get("img") and not s["img"].startswith("http"):
+                    s["img"] = request.build_absolute_uri(s["img"])
 
         return Response(
             {
@@ -138,6 +143,7 @@ class AIImageCreate(APIView):
             user=user,
             source_image=data.get("source_image"),
             product_id=data.get("product_id"),
+            color_id=data.get("color_id"),
             prompt=data.get("prompt", ""),
             idempotency_key=idem,
         )

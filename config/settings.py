@@ -394,6 +394,8 @@ TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 # --------------------------------------------------------------------------- #
 AI_PROVIDER = env("AI_PROVIDER", default="anthropic")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+GOOGLE_API_KEY = env("GOOGLE_API_KEY", default="")
+GOOGLE_IMAGEN_MODEL = env("GOOGLE_IMAGEN_MODEL", default="imagen-4.0-fast-generate-001")
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 AI_CHAT_MODEL = env("AI_CHAT_MODEL", default="claude-haiku-4-5-20251001")
 AI_CHAT_MODEL_STRONG = env("AI_CHAT_MODEL_STRONG", default="claude-sonnet-4-6")
