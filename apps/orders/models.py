@@ -59,7 +59,12 @@ class Order(BaseModel):
 
 class OrderItem(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    variant = models.ForeignKey("catalog.ProductVariant", on_delete=models.PROTECT)
+    product = models.ForeignKey(
+        "catalog.Product", on_delete=models.PROTECT, null=True, blank=True
+    )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant", on_delete=models.PROTECT, null=True, blank=True
+    )
     color = models.ForeignKey(
         "catalog.Color", on_delete=models.SET_NULL, null=True, blank=True
     )

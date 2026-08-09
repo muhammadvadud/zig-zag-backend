@@ -90,13 +90,18 @@ def create_order_from_cart(
 
     subtotal = 0
     for item in items:
-        variant = ProductVariant.objects.select_related("product").get(pk=item.variant_id)
-        product = variant.product
+        if item.variant_id:
+            variant = ProductVariant.objects.select_related("product").get(pk=item.variant_id)
+            product = variant.product
+        else:
+            variant = None
+            product = item.product
+
         # Savatga qo'shilgandan keyin mahsulot/variant sotuvdan olib tashlangan
         # yoki soft-delete qilingan bo'lishi mumkin — checkout paytida qayta
         # tekshiramiz, aks holda mijoz endi mavjud bo'lmagan mahsulotni sotib
         # olib qo'yishi mumkin edi.
-        if variant.is_deleted or not variant.is_active or product.is_deleted or not product.is_active:
+        if (variant and (variant.is_deleted or not variant.is_active)) or product.is_deleted or not product.is_active:
             raise BusinessError(
                 f"“{product.name_uz}” endi mavjud emas — savatdan olib tashlang va qayta urinib ko'ring."
             )
@@ -106,6 +111,7 @@ def create_order_from_cart(
         line_total = item.line_total
         OrderItem.objects.create(
             order=order,
+            product=product,
             variant=variant,
             color=item.color,
             product_name_snapshot=product.name_uz,

@@ -157,6 +157,7 @@ class ProductListSerializer(ImageUrlMixin, serializers.ModelSerializer):
             "is_new",
             "custom_only",
             "size_mode",
+            "price_per_m2",
             "rating_avg",
             "main_image",
             "sizes_count",

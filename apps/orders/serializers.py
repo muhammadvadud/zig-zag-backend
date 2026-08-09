@@ -6,8 +6,8 @@ from .models import MeasurementRequest, Order, OrderItem
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    product_id = serializers.IntegerField(source="variant.product.id", read_only=True)
-    product_slug = serializers.CharField(source="variant.product.slug", read_only=True)
+    product_id = serializers.SerializerMethodField()
+    product_slug = serializers.SerializerMethodField()
     variant_id = serializers.IntegerField(source="variant.id", read_only=True)
     color = serializers.CharField(source="color.name", read_only=True, default=None)
     color_hex = serializers.CharField(source="color.hex", read_only=True, default=None)
@@ -33,8 +33,18 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "review",
         )
 
+    def get_product_id(self, obj):
+        product = obj.product or (obj.variant.product if obj.variant else None)
+        return product.id if product else None
+
+    def get_product_slug(self, obj):
+        product = obj.product or (obj.variant.product if obj.variant else None)
+        return product.slug if product else None
+
     def get_image(self, obj):
-        product = obj.variant.product
+        product = obj.product or (obj.variant.product if obj.variant else None)
+        if not product:
+            return None
         imgs = list(product.images.all())
         main = next((i for i in imgs if i.is_main), None) or (imgs[0] if imgs else None)
         if not main:
@@ -49,10 +59,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return None
+        product = obj.product or (obj.variant.product if obj.variant else None)
+        if not product:
+            return None
         review = next(
             (
                 r
-                for r in obj.variant.product.reviews.all()
+                for r in product.reviews.all()
                 if r.user_id == request.user.id
             ),
             None,

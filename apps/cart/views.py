@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.catalog.models import Color, ProductVariant
+from apps.catalog.models import Color, ProductVariant, Product
 from apps.services.models import ServiceTariff
 
 from .models import CartItem
@@ -33,7 +33,12 @@ class CartItemCreateView(APIView):
         data = serializer.validated_data
 
         cart = get_or_create_cart(request)
-        variant = ProductVariant.objects.select_related("product").get(pk=data["variant_id"])
+        variant = None
+        product = None
+        if data.get("variant_id"):
+            variant = ProductVariant.objects.select_related("product").get(pk=data["variant_id"])
+        if data.get("product_id"):
+            product = Product.objects.get(pk=data["product_id"])
 
         tariff = None
         if data.get("service_tariff"):
@@ -46,6 +51,7 @@ class CartItemCreateView(APIView):
         item, created = CartItem.objects.get_or_create(
             cart=cart,
             variant=variant,
+            product=product,
             color=color,
             width_cm=data.get("width_cm"),
             height_cm=data.get("height_cm"),

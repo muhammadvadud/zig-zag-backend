@@ -30,7 +30,12 @@ class Cart(BaseModel):
 
 class CartItem(BaseModel):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
-    variant = models.ForeignKey("catalog.ProductVariant", on_delete=models.CASCADE)
+    product = models.ForeignKey(
+        "catalog.Product", on_delete=models.CASCADE, null=True, blank=True
+    )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant", on_delete=models.CASCADE, null=True, blank=True
+    )
     color = models.ForeignKey(
         "catalog.Color", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -52,8 +57,8 @@ class CartItem(BaseModel):
     @property
     def area_m2(self):
         # Custom bo'lsa mijoz o'lchami, aks holda variantning tayyor o'lchami (xizmat narxi uchun).
-        w = self.width_cm or self.variant.width_cm
-        h = self.height_cm or self.variant.height_cm
+        w = self.width_cm or (self.variant.width_cm if self.variant else 0)
+        h = self.height_cm or (self.variant.height_cm if self.variant else 0)
         if w and h:
             return (Decimal(w) / 100) * (Decimal(h) / 100)
         return Decimal("0")
@@ -61,11 +66,13 @@ class CartItem(BaseModel):
     @property
     def unit_price(self):
         # Custom o'lcham → per-m² narx (maydonga qarab); tayyor o'lcham → variant narxi.
-        product = self.variant.product
+        product = self.product or (self.variant.product if self.variant else None)
+        if not product:
+            return Decimal("0")
         if self.is_custom and product.price_per_m2:
             area = (Decimal(self.width_cm) / 100) * (Decimal(self.height_cm) / 100)
             return product.apply_discount(product.price_per_m2 * area)
-        return self.variant.unit_price
+        return self.variant.unit_price if self.variant else Decimal("0")
 
     @property
     def service_cost(self):
